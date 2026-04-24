@@ -1,0 +1,31 @@
+# Render Blueprint — https://render.com/docs/blueprint-spec
+# Full guide: DEPLOYMENT.md
+# Deploy: New → Blueprint → Connect this repo (or `render blueprint apply` from CLI).
+# After the first deploy, set secret env vars in the Render dashboard if you did not sync them here.
+
+services:
+  - type: web
+    name: home-harmony
+    runtime: node
+    region: oregon
+    plan: free
+    rootDir: .
+    buildCommand: npm run render:build
+    startCommand: npm run render:start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Same-origin API when Express serves frontend/dist (recommended on Render).
+      - key: VITE_API_URL
+        value: /api
+      - key: JWT_EXPIRE
+        value: 7d
+      # Set these in the dashboard (Secrets) or uncomment and paste values (not recommended for git):
+      - key: MONGODB_URI
+        sync: false
+      - key: JWT_SECRET
+        sync: false
+      # Optional: public site URL for emails/links. CORS also allows RENDER_EXTERNAL_URL automatically.
+      - key: FRONTEND_URL
+        sync: false

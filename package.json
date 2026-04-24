@@ -1,0 +1,30 @@
+{
+  "name": "home-harmony",
+  "private": true,
+  "description": "Monorepo root — run scripts from frontend or backend.",
+  "engines": {
+    "node": ">=18"
+  },
+  "scripts": {
+    "dev": "npm --prefix frontend run dev",
+    "build": "npm run build:frontend",
+    "build:frontend": "npm --prefix frontend run build",
+    "build:dev": "npm --prefix frontend run build:dev",
+    "build:ci": "npm ci --prefix frontend && npm --prefix frontend run build",
+    "build:production": "npm run build:ci && npm install --prefix backend --omit=dev && npm run verify:backend",
+    "verify:backend": "node --check backend/server.js",
+    "install:all": "npm ci --prefix frontend && npm install --prefix backend",
+    "preview": "npm --prefix frontend run preview",
+    "lint": "npm --prefix frontend run lint",
+    "test": "npm --prefix frontend run test",
+    "test:watch": "npm --prefix frontend run test:watch",
+    "backend:dev": "npm --prefix backend run dev",
+    "backend:start": "npm --prefix backend run start",
+    "backend:build": "npm --prefix backend run build",
+    "seed:superadmin": "node backend/scripts/seedSuperAdmin.mjs",
+    "serve": "npm run build:frontend && npm --prefix backend run start",
+    "serve:production": "npm run build:production && npm --prefix backend run start",
+    "render:build": "npm ci --prefix frontend && npm --prefix frontend run build && npm install --prefix backend --omit=dev && node --check backend/server.js",
+    "render:start": "npm --prefix backend run start"
+  }
+}
