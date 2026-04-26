@@ -66,7 +66,7 @@ Render injects **`PORT`** and **`RENDER_EXTERNAL_URL`**. Do **not** set `PORT` m
 | `VITE_API_URL` | Strongly recommended | Use **`/api`** so the browser talks to the **same** host as the UI (set at **build** time on Render) |
 | `FRONTEND_URL` | Optional | Public URL for links / consistency; CORS also allows `RENDER_EXTERNAL_URL` |
 
-**Build vs runtime:** Render exposes the same variables to **build** and **runtime** by default. The frontend `postbuild` seed script uses `MONGODB_URI` during the image build; if it is missing, the seed skips safely.
+**Build vs runtime:** Render exposes the same variables to **build** and **runtime** by default. The production **Vite build does not connect to MongoDB**; the super-admin bootstrap runs when the **Node server starts** and `mongoose` connects (see `backend/config/database.js`).
 
 ---
 
@@ -74,7 +74,7 @@ Render injects **`PORT`** and **`RENDER_EXTERNAL_URL`**. Do **not** set `PORT` m
 
 | Command | Behavior |
 |---------|----------|
-| `npm run render:build` | `npm ci` in `frontend` → `npm run build` (Vite → `frontend/dist`, including `postbuild` super-admin seed) → `npm install --prefix backend --omit=dev` → `node --check backend/server.js` |
+| `npm run render:build` | `npm ci` in `frontend` → `npm run build` (Vite → `frontend/dist`) → `npm install --prefix backend --omit=dev` → `node --check backend/server.js` |
 | `npm run render:start` | `node backend/server.js` — API under `/api`, static files from `frontend/dist` when present |
 
 Local equivalent after a clean clone: `npm run serve:production`.
@@ -85,13 +85,13 @@ Local equivalent after a clean clone: `npm run serve:production`.
 
 - Open **`RENDER_EXTERNAL_URL`** (or your custom domain) in a browser.
 - Confirm **`/api/health`** returns JSON.
-- Log in with an admin account (use **`npm run seed:superadmin`** locally against Atlas first, or rely on the postbuild seed if `MONGODB_URI` was available during build).
+- Log in with an admin account after the first successful DB connection (super-admin is ensured on server startup), or run **`npm run seed:superadmin`** locally against Atlas when needed.
 
 ---
 
 ## Super-admin seed
 
-The frontend **`postbuild`** hook runs `backend/scripts/seedSuperAdmin.mjs`. It uses **`MONGODB_URI`** from the environment and **exits successfully** if the database is unreachable (so builds do not fail in CI). To create the bootstrap admin on Render, ensure **`MONGODB_URI`** is available during the **build** phase.
+On **server start**, after MongoDB connects, `backend/config/database.js` runs `ensureSuperAdmin()` so a bootstrap admin exists when possible. You can also run **`npm run seed:superadmin`** from the repo root manually (uses `MONGODB_URI` from `.env`).
 
 ---
 

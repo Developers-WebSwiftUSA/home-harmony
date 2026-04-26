@@ -24,7 +24,7 @@
     "seed:superadmin": "node backend/scripts/seedSuperAdmin.mjs",
     "serve": "npm run build:frontend && npm --prefix backend run start",
     "serve:production": "npm run build:production && npm --prefix backend run start",
-    "render:build": "npm ci --prefix frontend --include=dev && npm install --prefix backend --omit=dev && npm --prefix frontend run build && node --check backend/server.js",
+    "render:build": "npm ci --prefix frontend --include=dev && npm --prefix frontend run build && npm install --prefix backend --omit=dev && node --check backend/server.js",
     "render:start": "npm --prefix backend run start"
   }
 }

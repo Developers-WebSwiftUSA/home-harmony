@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Standalone seed (e.g. frontend `postbuild`). Exits 0 even if DB is unavailable so CI builds do not fail.
+ * Standalone seed (e.g. `npm run seed:superadmin`). Exits 0 even if DB is unavailable.
  */
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
