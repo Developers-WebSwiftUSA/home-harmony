@@ -8,6 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useSearchParams } from "react-router-dom";
 import { useSocket } from "@/context/SocketContext";
 import { Message } from "@/types/models";
+import { useUserIdConversationDeepLink } from "@/hooks/useUserIdConversationDeepLink";
 
 const AgentMessages = () => {
   const queryClient = useQueryClient();
@@ -20,6 +21,18 @@ const AgentMessages = () => {
   const [messageText, setMessageText] = useState("");
   const [search, setSearch] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const conv = searchParams.get("conversation");
+    if (conv) setSelectedConversation(conv);
+  }, [searchParams]);
+
+  useUserIdConversationDeepLink({
+    conversationsQueryKey: ["agent-conversations"],
+    messagesPath: "/agent/messages",
+    selectedConversation,
+    setSelectedConversation,
+  });
 
   const { data: conversationsData } = useQuery({
     queryKey: ["agent-conversations"],

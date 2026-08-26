@@ -1,7 +1,7 @@
-import crypto from 'crypto';
-import bcrypt from 'bcryptjs';
 import asyncHandler from '../middleware/asyncHandler.js';
 import User from '../models/User.model.js';
+import Property from '../models/Property.model.js';
+import Tour from '../models/Tour.model.js';
 
 // @desc    Get all users
 // @route   GET /api/users
@@ -36,6 +36,122 @@ export const getUsers = asyncHandler(async (req, res) => {
     page: parseInt(page),
     pages: Math.ceil(total / limit),
     data: users
+  });
+});
+
+// @desc    List public agents for directory / landing pages
+// @route   GET /api/users/agents/public
+// @access  Public
+export const getPublicAgents = asyncHandler(async (req, res) => {
+  const agents = await User.find({ role: 'agent', status: 'active' })
+    .select('firstName lastName email phone avatar agentProfile location')
+    .sort({ 'agentProfile.rating.average': -1, firstName: 1 });
+
+  const data = await Promise.all(
+    agents.map(async (agent) => {
+      const assignedProperties = await Property.countDocuments({
+        agentId: agent._id,
+        status: { $in: ['active', 'pending', 'sold', 'rented'] }
+      });
+
+      return {
+        ...agent.toObject(),
+        assignedProperties
+      };
+    })
+  );
+
+  res.status(200).json({
+    success: true,
+    count: data.length,
+    data
+  });
+});
+
+// @desc    List active agents (for property assignment)
+// @route   GET /api/users/agents/active
+// @access  Private/Seller or Admin
+export const getActiveAgents = asyncHandler(async (req, res) => {
+  const agents = await User.find({ role: 'agent', status: 'active' })
+    .select('firstName lastName email phone avatar agentProfile')
+    .sort({ firstName: 1, lastName: 1 });
+
+  res.status(200).json({
+    success: true,
+    count: agents.length,
+    data: agents
+  });
+});
+
+// @desc    Get public agent profile with ratings and reviews
+// @route   GET /api/users/agents/:id/profile
+// @access  Private
+export const getAgentPublicProfile = asyncHandler(async (req, res) => {
+  const agent = await User.findOne({
+    _id: req.params.id,
+    role: 'agent'
+  }).select('-password');
+
+  if (!agent) {
+    return res.status(404).json({
+      success: false,
+      message: 'Agent not found'
+    });
+  }
+
+  const tours = await Tour.find({
+    agentId: agent._id,
+    status: 'completed',
+    'feedback.agentRating': { $exists: true, $ne: null }
+  })
+    .populate('propertyId', 'title location')
+    .populate('buyerId', 'firstName lastName')
+    .sort({ 'feedback.submittedAt': -1 })
+    .limit(25);
+
+  const assignedProperties = await Property.countDocuments({
+    agentId: agent._id,
+    status: { $in: ['active', 'pending', 'sold', 'rented'] }
+  });
+
+  const reviews = tours.map((tour) => ({
+    _id: tour._id,
+    propertyTitle: tour.propertyId?.title || 'Property',
+    propertyLocation: [
+      tour.propertyId?.location?.city,
+      tour.propertyId?.location?.state
+    ]
+      .filter(Boolean)
+      .join(', '),
+    rating: tour.feedback.agentRating,
+    comment: tour.feedback.agentComment || '',
+    submittedAt: tour.feedback.submittedAt,
+    buyerName:
+      `${tour.buyerId?.firstName || ''} ${tour.buyerId?.lastName || ''}`.trim() ||
+      'Buyer',
+    wouldRecommend: tour.feedback.wouldRecommend,
+    overallExperience: tour.feedback.overallExperience
+  }));
+
+  const reviewCount = reviews.length;
+  const averageRating =
+    reviewCount > 0
+      ? Number(
+          (
+            reviews.reduce((sum, review) => sum + review.rating, 0) / reviewCount
+          ).toFixed(1)
+        )
+      : agent.agentProfile?.rating?.average || 0;
+
+  res.status(200).json({
+    success: true,
+    data: {
+      agent,
+      averageRating,
+      reviewCount,
+      assignedProperties,
+      reviews
+    }
   });
 });
 
@@ -82,6 +198,10 @@ export const updateProfile = asyncHandler(async (req, res) => {
     avatar: req.body.avatar
   };
 
+  if (req.body.preferences?.distanceUnit) {
+    fieldsToUpdate.preferences = { distanceUnit: req.body.preferences.distanceUnit };
+  }
+
   // Role-specific profile updates
   if (req.user.role === 'buyer' && req.body.buyerProfile) {
     fieldsToUpdate.buyerProfile = req.body.buyerProfile;
@@ -90,14 +210,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
     fieldsToUpdate.sellerProfile = req.body.sellerProfile;
   }
   if (req.user.role === 'agent' && req.body.agentProfile) {
-    const current =
-      req.user.agentProfile && typeof req.user.agentProfile.toObject === 'function'
-        ? req.user.agentProfile.toObject()
-        : { ...(req.user.agentProfile || {}) };
-    const incoming = { ...req.body.agentProfile };
-    delete incoming.verified;
-    delete incoming.licenseNumber;
-    fieldsToUpdate.agentProfile = { ...current, ...incoming };
+    fieldsToUpdate.agentProfile = req.body.agentProfile;
   }
 
   const user = await User.findByIdAndUpdate(
@@ -119,13 +232,9 @@ export const updateProfile = asyncHandler(async (req, res) => {
 // @route   PUT /api/users/:id
 // @access  Private/Admin
 export const updateUser = asyncHandler(async (req, res) => {
-  const body = { ...req.body };
-  delete body.pendingAgentApprovalHash;
-  delete body.pendingAgentApprovalIssuedAt;
-
   const user = await User.findByIdAndUpdate(
     req.params.id,
-    body,
+    req.body,
     {
       new: true,
       runValidators: true
@@ -187,89 +296,10 @@ export const verifyAgent = asyncHandler(async (req, res) => {
   }
 
   user.agentProfile.verified = true;
-  user.pendingAgentApprovalHash = undefined;
-  user.pendingAgentApprovalIssuedAt = undefined;
   await user.save();
 
   res.status(200).json({
     success: true,
     data: user
-  });
-});
-
-// @desc    Admin issues one-time agent approval license code
-// @route   PUT /api/users/:id/issue-agent-license
-// @access  Private/Admin
-export const issueAgentApprovalCode = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.params.id);
-
-  if (!user) {
-    return res.status(404).json({ success: false, message: 'User not found' });
-  }
-  if (user.role !== 'agent') {
-    return res.status(400).json({ success: false, message: 'User is not an agent' });
-  }
-
-  const plain = `HTG-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
-  const hash = await bcrypt.hash(plain, 10);
-  user.pendingAgentApprovalHash = hash;
-  user.pendingAgentApprovalIssuedAt = new Date();
-  user.agentProfile = user.agentProfile || {};
-  user.agentProfile.verified = false;
-  await user.save({ validateBeforeSave: true });
-
-  res.status(200).json({
-    success: true,
-    message: 'Share this code with the agent once. It replaces any previous code.',
-    data: {
-      approvalCode: plain,
-      issuedAt: user.pendingAgentApprovalIssuedAt,
-    },
-  });
-});
-
-// @desc    Agent redeems admin-issued approval code (one-time)
-// @route   POST /api/users/me/redeem-agent-license
-// @access  Private/Agent
-export const redeemAgentLicense = asyncHandler(async (req, res) => {
-  const raw = (req.body?.code || '').trim();
-  const code = raw.toUpperCase();
-  if (!code) {
-    return res.status(400).json({ success: false, message: 'Please enter your approval license code' });
-  }
-
-  const user = await User.findById(req.user.id).select('+pendingAgentApprovalHash');
-
-  if (user.role !== 'agent') {
-    return res.status(400).json({ success: false, message: 'Only agent accounts use license activation' });
-  }
-  if (user.agentProfile?.verified) {
-    return res.status(400).json({ success: false, message: 'Your agent license is already active' });
-  }
-  if (!user.pendingAgentApprovalHash) {
-    return res.status(400).json({
-      success: false,
-      message: 'No approval code has been issued yet. Ask an administrator to generate one from your user review page.',
-    });
-  }
-
-  const match = await bcrypt.compare(code, user.pendingAgentApprovalHash);
-  if (!match) {
-    return res.status(400).json({ success: false, message: 'Invalid approval license code' });
-  }
-
-  user.agentProfile = user.agentProfile || {};
-  user.agentProfile.verified = true;
-  user.agentProfile.licenseNumber = code;
-  user.pendingAgentApprovalHash = undefined;
-  user.pendingAgentApprovalIssuedAt = undefined;
-  await user.save({ validateBeforeSave: true });
-
-  const updated = await User.findById(user._id).select('-password');
-
-  res.status(200).json({
-    success: true,
-    message: 'Agent license activated. Welcome!',
-    data: updated,
   });
 });

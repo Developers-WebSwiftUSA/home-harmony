@@ -3,7 +3,7 @@ import { Calendar, Clock, MapPin, X, AlertCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tour } from "@/types/models";
 import { cn } from "@/lib/utils";
-import { formatDistanceToNow } from "date-fns";
+import { formatTourCountdown, getTourDateString } from "@/lib/tourDate";
 
 interface TourNotificationProps {
   tour: Tour;
@@ -23,28 +23,21 @@ const TourNotification = ({ tour, onDismiss, onView, className }: TourNotificati
         return;
       }
 
-      const tourDateTime = new Date(`${tour.date}T${tour.startTime}`);
-      const now = new Date();
-      const diff = tourDateTime.getTime() - now.getTime();
+      const countdown = formatTourCountdown(tour.date, tour.startTime);
+      if (!countdown) {
+        setTimeRemaining("");
+        setIsExpired(false);
+        return;
+      }
 
-      if (diff <= 0) {
+      if (countdown === "Tour time has passed") {
         setIsExpired(true);
-        setTimeRemaining("Tour time has passed");
+        setTimeRemaining(countdown);
         return;
       }
 
       setIsExpired(false);
-      const days = Math.floor(diff / (1000 * 60 * 60 * 24));
-      const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-
-      if (days > 0) {
-        setTimeRemaining(`${days}d ${hours}h ${minutes}m`);
-      } else if (hours > 0) {
-        setTimeRemaining(`${hours}h ${minutes}m`);
-      } else {
-        setTimeRemaining(`${minutes}m`);
-      }
+      setTimeRemaining(countdown);
     };
 
     updateCountdown();
@@ -131,8 +124,8 @@ const TourNotification = ({ tour, onDismiss, onView, className }: TourNotificati
             <div className="flex items-center gap-2 text-sm">
               <Calendar className="w-4 h-4 text-primary" />
               <span className="text-foreground">
-                {tour.date
-                  ? new Date(tour.date).toLocaleDateString("en-US", {
+                {getTourDateString(tour.date)
+                  ? new Date(getTourDateString(tour.date) + "T12:00:00").toLocaleDateString("en-US", {
                       weekday: "short",
                       month: "short",
                       day: "numeric",
@@ -150,7 +143,7 @@ const TourNotification = ({ tour, onDismiss, onView, className }: TourNotificati
           </div>
 
           {/* Countdown Timer */}
-          {timeRemaining && !isExpired && tour.status === "confirmed" && (
+          {timeRemaining && !isExpired && ["pending", "confirmed"].includes(tour.status) && (
             <div className="mb-3">
               <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-primary/10 rounded-lg border border-primary/20">
                 <Clock className="w-3.5 h-3.5 text-primary animate-pulse" />

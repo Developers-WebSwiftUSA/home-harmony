@@ -1,6 +1,23 @@
 import jwt from 'jsonwebtoken';
 import User from '../models/User.model.js';
 
+// Optional auth - attach user when token is valid, continue otherwise
+export const optionalAuth = async (req, res, next) => {
+  try {
+    let token;
+    if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
+      token = req.headers.authorization.split(' ')[1];
+    }
+    if (token) {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      req.user = await User.findById(decoded.id).select('-password');
+    }
+  } catch {
+    req.user = undefined;
+  }
+  next();
+};
+
 // Protect routes - require authentication
 export const protect = async (req, res, next) => {
   try {
@@ -79,15 +96,4 @@ export const authorizeOwnerOrAdmin = (resourceUserId) => {
       message: 'Not authorized to access this resource'
     });
   };
-};
-
-/** Blocks agents until they redeem the admin-issued license code (role check: agent only). */
-export const blockUnverifiedAgent = (req, res, next) => {
-  if (req.user.role !== 'agent') return next();
-  if (req.user.agentProfile?.verified === true) return next();
-  return res.status(403).json({
-    success: false,
-    code: 'AGENT_LICENSE_REQUIRED',
-    message: 'Enter your approval license code on the agent dashboard to unlock this feature.',
-  });
 };

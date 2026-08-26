@@ -1,6 +1,6 @@
 import { apiRequest } from "@/api/client";
 import { ApiResponse } from "@/types/api";
-import { User } from "@/types/models";
+import { AgentPublicProfile, User } from "@/types/models";
 
 export const userService = {
   list: (params?: Record<string, string | number | boolean | undefined>) => {
@@ -12,8 +12,16 @@ export const userService = {
     return apiRequest<ApiResponse<User[]>>(`/users${suffix}`, { auth: true });
   },
 
+  listActiveAgents: () =>
+    apiRequest<ApiResponse<User[]>>("/users/agents/active", { auth: true }),
+
+  listPublicAgents: () => apiRequest<ApiResponse<User[]>>("/users/agents/public"),
+
   getById: (id: string) =>
     apiRequest<ApiResponse<User>>(`/users/${id}`, { auth: true }),
+
+  getAgentProfile: (id: string) =>
+    apiRequest<ApiResponse<AgentPublicProfile>>(`/users/agents/${id}/profile`),
 
   update: (id: string, payload: Partial<User>) => {
     const endpoint = id === "me" ? "/users/me" : `/users/${id}`;
@@ -28,19 +36,6 @@ export const userService = {
     apiRequest<ApiResponse<{ message: string }>>(`/users/${id}`, {
       method: "DELETE",
       auth: true,
-    }),
-
-  issueAgentLicense: (id: string) =>
-    apiRequest<ApiResponse<{ approvalCode: string; issuedAt?: string }>>(`/users/${id}/issue-agent-license`, {
-      method: "PUT",
-      auth: true,
-    }),
-
-  redeemAgentLicense: (code: string) =>
-    apiRequest<ApiResponse<User>>(`/users/me/redeem-agent-license`, {
-      method: "POST",
-      auth: true,
-      body: JSON.stringify({ code }),
     }),
 };
 

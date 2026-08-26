@@ -1,35 +1,13 @@
-import { useSearchParams, Link } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { Phone, Mail, MapPin, Star, MessageSquare } from "lucide-react";
 import Navbar from "@/components/landing/Navbar";
 import Footer from "@/components/landing/Footer";
 import { Button } from "@/components/ui/button";
-import { useQuery } from "@tanstack/react-query";
-import { agentPublicService } from "@/services/agent.service";
-import { UserProfileAvatar } from "@/components/user/UserProfileAvatar";
-import type { PublicAgent, User } from "@/types/models";
-
-function agentAsUser(a: PublicAgent): User {
-  return {
-    email: a.email || "",
-    role: "agent",
-    firstName: a.firstName,
-    lastName: a.lastName,
-    avatar: a.avatar,
-  };
-}
+import agent1 from "@/assets/agent-1.jpg";
 
 const ContactAgent = () => {
   const [searchParams] = useSearchParams();
   const propertyTitle = searchParams.get("propertyTitle") || "Selected Property";
-  const agentId = searchParams.get("agentId");
-
-  const { data, isLoading, isError } = useQuery({
-    queryKey: ["public-agent", agentId],
-    queryFn: () => agentPublicService.getById(agentId!),
-    enabled: Boolean(agentId),
-  });
-
-  const agent = data?.data;
 
   return (
     <div className="min-h-screen bg-background">
@@ -48,88 +26,56 @@ const ContactAgent = () => {
 
       <section className="section-padding">
         <div className="container max-w-5xl grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Agent Profile */}
           <aside className="lg:col-span-1 bg-card border border-border rounded-xl p-6 space-y-4">
-            {!agentId ? (
-              <div className="text-sm text-muted-foreground space-y-3">
-                <p>No agent selected.</p>
-                <Button variant="outline" size="sm" asChild>
-                  <Link to="/agents">Browse agents</Link>
-                </Button>
+            <div className="flex items-center gap-4">
+              <img
+                src={agent1}
+                alt="Agent"
+                className="w-16 h-16 rounded-full object-cover"
+              />
+              <div>
+                <h2 className="font-heading font-bold text-foreground text-lg">
+                  Savannah Nguyen
+                </h2>
+                <p className="text-xs text-muted-foreground">
+                  Senior Property Specialist · 8+ years experience
+                </p>
               </div>
-            ) : isLoading ? (
-              <p className="text-sm text-muted-foreground">Loading agent…</p>
-            ) : isError || !agent ? (
-              <div className="text-sm text-muted-foreground space-y-3">
-                <p>We could not load this agent. They may no longer be listed.</p>
-                <Button variant="outline" size="sm" asChild>
-                  <Link to="/agents">Browse agents</Link>
-                </Button>
+            </div>
+
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <Star className="w-4 h-4 text-yellow-500" />
+              <span className="font-medium text-foreground">4.9</span>
+              <span>· 126 reviews</span>
+            </div>
+
+            <div className="space-y-3 text-sm">
+              <div className="flex items-center gap-2">
+                <Phone className="w-4 h-4 text-primary" />
+                <a href="tel:+15551234567" className="hover:text-primary">
+                  +1 (555) 123-4567
+                </a>
               </div>
-            ) : (
-              <>
-                <div className="flex items-center gap-4">
-                  <UserProfileAvatar user={agentAsUser(agent)} sizeClassName="h-16 w-16" />
-                  <div>
-                    <h2 className="font-heading font-bold text-foreground text-lg">
-                      {[agent.firstName, agent.lastName].filter(Boolean).join(" ").trim() ||
-                        agent.email ||
-                        "Agent"}
-                    </h2>
-                    <p className="text-xs text-muted-foreground">{agent.roleTitle}</p>
-                    {agent.agentProfile?.yearsOfExperience != null && agent.agentProfile.yearsOfExperience > 0 ? (
-                      <p className="text-xs text-muted-foreground">
-                        {agent.agentProfile.yearsOfExperience}+ years experience
-                      </p>
-                    ) : null}
-                  </div>
-                </div>
+              <div className="flex items-center gap-2">
+                <Mail className="w-4 h-4 text-primary" />
+                <a href="mailto:savannah@htg.com" className="hover:text-primary">
+                  savannah@htg.com
+                </a>
+              </div>
+              <div className="flex items-center gap-2">
+                <MapPin className="w-4 h-4 text-primary" />
+                <span>Vancouver, BC · House Tour Guide</span>
+              </div>
+            </div>
 
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Star className="w-4 h-4 text-yellow-500 shrink-0" />
-                  <span className="font-medium text-foreground">
-                    {(agent.agentProfile?.rating?.count ?? 0) === 0
-                      ? "0"
-                      : Number(agent.agentProfile?.rating?.average ?? 0).toFixed(1)}
-                  </span>
-                  <span>
-                    · {(agent.agentProfile?.rating?.count ?? 0)}{" "}
-                    {(agent.agentProfile?.rating?.count ?? 0) === 1 ? "review" : "reviews"}
-                  </span>
-                </div>
-
-                <div className="space-y-3 text-sm">
-                  {agent.phone ? (
-                    <div className="flex items-center gap-2">
-                      <Phone className="w-4 h-4 text-primary shrink-0" />
-                      <a href={`tel:${agent.phone}`} className="hover:text-primary break-all">
-                        {agent.phone}
-                      </a>
-                    </div>
-                  ) : null}
-                  {agent.email ? (
-                    <div className="flex items-center gap-2">
-                      <Mail className="w-4 h-4 text-primary shrink-0" />
-                      <a href={`mailto:${agent.email}`} className="hover:text-primary break-all">
-                        {agent.email}
-                      </a>
-                    </div>
-                  ) : null}
-                  {agent.location ? (
-                    <div className="flex items-center gap-2">
-                      <MapPin className="w-4 h-4 text-primary shrink-0" />
-                      <span>{agent.location}</span>
-                    </div>
-                  ) : null}
-                </div>
-
-                <Button variant="outline" className="w-full gap-2 text-xs" type="button" disabled>
-                  <MessageSquare className="w-4 h-4" />
-                  Start in‑app chat (coming soon)
-                </Button>
-              </>
-            )}
+            <Button variant="outline" className="w-full gap-2 text-xs">
+              <MessageSquare className="w-4 h-4" />
+              Start in‑app chat (coming soon)
+            </Button>
           </aside>
 
+          {/* Contact Form */}
           <main className="lg:col-span-2 bg-card border border-border rounded-xl p-6 md:p-8">
             <h2 className="text-xl font-heading font-bold text-foreground mb-1">
               Send a message to the agent
@@ -198,7 +144,7 @@ const ContactAgent = () => {
                 />
               </div>
 
-              <Button className="w-full md:w-auto" type="button">
+              <Button className="w-full md:w-auto">
                 Send Message to Agent
               </Button>
             </form>
@@ -212,3 +158,4 @@ const ContactAgent = () => {
 };
 
 export default ContactAgent;
+

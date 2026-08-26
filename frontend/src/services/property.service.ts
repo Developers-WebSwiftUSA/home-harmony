@@ -15,29 +15,7 @@ export const propertyService = {
   getById: (id: string, requireAuth = false) =>
     apiRequest<ApiResponse<Property>>(`/properties/${id}`, requireAuth ? { auth: true } : {}),
 
-  create: (payload: {
-    title: string;
-    description: string;
-    type: string;
-    status?: string;
-    price: number;
-    bedrooms: number;
-    bathrooms: number;
-    squareFeet: number;
-    location: {
-      address: string;
-      city: string;
-      state: string;
-      zipCode?: string;
-      country?: string;
-      coordinates: {
-        type: "Point";
-        coordinates: [number, number];
-      };
-    };
-    images?: Array<{ url: string; isPrimary?: boolean }>;
-    amenities?: string[];
-  }) =>
+  create: (payload: Record<string, unknown>) =>
     apiRequest<ApiResponse<Property>>("/properties", {
       method: "POST",
       auth: true,
@@ -66,15 +44,39 @@ export const propertyService = {
       body: JSON.stringify(payload),
     }),
 
+  assignAgent: (id: string, agentId: string | null) =>
+    apiRequest<ApiResponse<Property>>(`/properties/${id}/assign-agent`, {
+      method: "PUT",
+      auth: true,
+      body: JSON.stringify({ agentId }),
+    }),
+
+  setViewership: (id: string, enabled: boolean) =>
+    apiRequest<ApiResponse<Property> & { message?: string }>(`/properties/${id}/viewership`, {
+      method: "PUT",
+      auth: true,
+      body: JSON.stringify({ enabled }),
+    }),
+
   remove: (id: string) =>
     apiRequest<ApiResponse<{ message: string }>>(`/properties/${id}`, {
       method: "DELETE",
       auth: true,
     }),
 
-  nearby: (longitude: number, latitude: number, maxDistance = 10000) =>
-    apiRequest<ApiResponse<Property[]>>(
-      `/properties/search/nearby?longitude=${longitude}&latitude=${latitude}&maxDistance=${maxDistance}`
+  nearby: (longitude: number, latitude: number, maxDistance = 10000, listingType?: string) => {
+    const params = new URLSearchParams({
+      longitude: String(longitude),
+      latitude: String(latitude),
+      maxDistance: String(maxDistance),
+    });
+    if (listingType) params.set("listingType", listingType);
+    return apiRequest<ApiResponse<Property[]>>(`/properties/search/nearby?${params.toString()}`);
+  },
+
+  suggestLocations: (q: string, listingType = "rent") =>
+    apiRequest<ApiResponse<Array<{ label: string; city?: string; state?: string; zipCode?: string }>>>(
+      `/properties/locations/suggest?q=${encodeURIComponent(q)}&listingType=${listingType}`
     ),
 };
 

@@ -1,12 +1,16 @@
 # Local overrides (optional)
+.env
 .env.local
 .env.*.local
+backend/.env
 
 # Dependencies & build output
 node_modules/
 frontend/node_modules/
 frontend/dist/
 backend/node_modules/
+backend/mongo-data/
+mongo-data/
 
 # Logs & OS
 *.log

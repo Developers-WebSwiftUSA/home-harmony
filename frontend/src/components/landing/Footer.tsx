@@ -37,24 +37,25 @@ const Footer = () => {
             <div>
               <h4 className="font-heading font-bold text-dark-surface-foreground mb-4">Our Sites</h4>
               <ul className="space-y-2 text-sm text-dark-surface-foreground/60">
-                <li><a href="#" className="hover:text-primary transition-colors">My Account</a></li>
-                <li><a href="#" className="hover:text-primary transition-colors">Short Listed</a></li>
-                <li><a href="#" className="hover:text-primary transition-colors">View Property</a></li>
+                <li><Link to="/login" className="hover:text-primary transition-colors">My Account</Link></li>
+                <li><Link to="/buyer/favorites" className="hover:text-primary transition-colors">Short Listed</Link></li>
+                <li><Link to="/properties" className="hover:text-primary transition-colors">View Property</Link></li>
+                <li><Link to="/rentals" className="hover:text-primary transition-colors">Rentals</Link></li>
               </ul>
             </div>
             <div>
               <h4 className="font-heading font-bold text-dark-surface-foreground mb-4">Information</h4>
               <ul className="space-y-2 text-sm text-dark-surface-foreground/60">
-                <li><a href="#" className="hover:text-primary transition-colors">About Us</a></li>
-                <li><a href="#" className="hover:text-primary transition-colors">FAQ</a></li>
-                <li><a href="#" className="hover:text-primary transition-colors">Contact Us</a></li>
+                <li><Link to="/contact" className="hover:text-primary transition-colors">About Us</Link></li>
+                <li><Link to="/news" className="hover:text-primary transition-colors">News</Link></li>
+                <li><Link to="/contact" className="hover:text-primary transition-colors">Contact Us</Link></li>
               </ul>
             </div>
             <div>
               <h4 className="font-heading font-bold text-dark-surface-foreground mb-4">Helpful Links</h4>
               <ul className="space-y-2 text-sm text-dark-surface-foreground/60">
-                <li><a href="#" className="hover:text-primary transition-colors">Terms & Conditions</a></li>
-                <li><a href="#" className="hover:text-primary transition-colors">Help Center</a></li>
+                <li><Link to="/contact" className="hover:text-primary transition-colors">Terms & Conditions</Link></li>
+                <li><Link to="/contact" className="hover:text-primary transition-colors">Help Center</Link></li>
               </ul>
             </div>
             <div>

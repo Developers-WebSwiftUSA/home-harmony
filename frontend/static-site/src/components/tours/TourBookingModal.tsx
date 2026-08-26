@@ -10,6 +10,7 @@ import { tourService } from "@/services/tour.service";
 import { toast } from "sonner";
 import { Property } from "@/types/models";
 import { cn } from "@/lib/utils";
+import { toLocalDateString } from "@/lib/tourDate";
 
 interface TourBookingModalProps {
   open: boolean;
@@ -26,10 +27,10 @@ const TourBookingModal = ({ open, onClose, property, onSuccess }: TourBookingMod
 
   // Fetch availability for selected date
   const { data: availabilityData } = useQuery({
-    queryKey: ["tour-availability", property._id, selectedDate?.toISOString().split("T")[0]],
+    queryKey: ["tour-availability", property._id, selectedDate ? toLocalDateString(selectedDate) : null],
     queryFn: () => {
       if (!selectedDate) return Promise.resolve({ success: true, data: [] });
-      return tourService.availability(property._id, selectedDate.toISOString().split("T")[0]);
+      return tourService.availability(property._id, toLocalDateString(selectedDate));
     },
     enabled: !!selectedDate && step === "time",
   });
@@ -43,7 +44,7 @@ const TourBookingModal = ({ open, onClose, property, onSuccess }: TourBookingMod
       }
       return tourService.create({
         propertyId: property._id,
-        date: selectedDate.toISOString().split("T")[0],
+        date: toLocalDateString(selectedDate),
         startTime: selectedTime.startTime,
         endTime: selectedTime.endTime,
         message: message.trim() || undefined,

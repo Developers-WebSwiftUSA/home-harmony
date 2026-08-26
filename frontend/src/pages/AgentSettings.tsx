@@ -1,19 +1,17 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { DashboardSidebar } from "./AdminDashboard";
 import { userService } from "@/services/user.service";
 import { authService } from "@/services/auth.service";
-import { uploadService } from "@/services/upload.service";
 import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { UserProfileAvatar } from "@/components/user/UserProfileAvatar";
-import { User, Mail, Phone, Save, Lock, Eye, EyeOff, Camera } from "lucide-react";
+import { User, Mail, Phone, Save, Lock, Eye, EyeOff } from "lucide-react";
+import { DistanceUnitSettings } from "@/components/settings/DistanceUnitSettings";
 
 const AgentSettings = () => {
   const { user: authUser, updateUser } = useAuth();
   const queryClient = useQueryClient();
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const { data } = useQuery({
     queryKey: ["user-profile"],
@@ -59,29 +57,6 @@ const AgentSettings = () => {
       toast.success("Profile updated successfully");
       updateUser(data.data);
       queryClient.invalidateQueries({ queryKey: ["user-profile"] });
-    },
-  });
-
-  const avatarUploadMutation = useMutation({
-    mutationFn: async (file: File) => {
-      const up = await uploadService.uploadImage(file);
-      const url = up.data?.url;
-      if (!url) throw new Error("Upload did not return a URL");
-      return userService.update("me", {
-        firstName: profileForm.firstName,
-        lastName: profileForm.lastName,
-        email: profileForm.email,
-        phone: profileForm.phone,
-        avatar: url,
-      });
-    },
-    onSuccess: (data) => {
-      toast.success("Profile photo updated");
-      updateUser(data.data);
-      queryClient.invalidateQueries({ queryKey: ["user-profile"] });
-    },
-    onError: () => {
-      toast.error("Could not upload image. Try a smaller JPG or PNG.");
     },
   });
 
@@ -132,57 +107,6 @@ const AgentSettings = () => {
               <User className="w-5 h-5 text-primary" />
               <h2 className="font-heading font-bold text-foreground">Profile Information</h2>
             </div>
-
-            <div className="mb-6 flex flex-col gap-4 border-b border-border pb-6 sm:flex-row sm:items-center">
-              <UserProfileAvatar user={user} sizeClassName="h-20 w-20" fallbackTextClassName="text-lg" />
-              <div className="flex-1 space-y-2">
-                <p className="text-sm text-muted-foreground">
-                  Your photo appears only after you add one here. Until then, others see your initials.
-                </p>
-                <input
-                  ref={fileInputRef}
-                  type="file"
-                  accept="image/jpeg,image/png,image/webp,image/gif"
-                  className="hidden"
-                  onChange={(e) => {
-                    const file = e.target.files?.[0];
-                    e.target.value = "";
-                    if (file) avatarUploadMutation.mutate(file);
-                  }}
-                />
-                <div className="flex flex-wrap items-center gap-2">
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="gap-2"
-                    disabled={avatarUploadMutation.isPending}
-                    onClick={() => fileInputRef.current?.click()}
-                  >
-                    <Camera className="h-4 w-4" />
-                    {avatarUploadMutation.isPending ? "Uploading…" : user?.avatar ? "Change photo" : "Add profile photo"}
-                  </Button>
-                  {user?.avatar ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="sm"
-                      className="text-xs text-muted-foreground"
-                      disabled={avatarUploadMutation.isPending}
-                      onClick={() => {
-                        profileMutation.mutate({
-                          ...profileForm,
-                          avatar: "",
-                        });
-                      }}
-                    >
-                      Remove photo
-                    </Button>
-                  ) : null}
-                </div>
-              </div>
-            </div>
-
             <div className="space-y-4">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
@@ -232,6 +156,8 @@ const AgentSettings = () => {
               </Button>
             </div>
           </form>
+
+          <DistanceUnitSettings />
 
           {/* Password Change */}
           <form onSubmit={handlePasswordSubmit} className="bg-card border border-border rounded-xl p-6">

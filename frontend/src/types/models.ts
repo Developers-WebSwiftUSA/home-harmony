@@ -1,31 +1,22 @@
 export type UserRole = "admin" | "buyer" | "seller" | "agent";
 
-export interface AgentProfile {
-  verified?: boolean;
-  licenseNumber?: string;
-  rating?: {
-    average?: number;
-    count?: number;
-  };
+export type DistanceUnit = "miles" | "km";
+
+export interface UserPreferences {
+  distanceUnit?: DistanceUnit;
 }
 
-/** Sanitized agent row from GET /api/agents (public). */
-export interface PublicAgent {
-  _id: string;
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-  phone?: string;
-  avatar?: string;
-  location?: string;
-  roleTitle?: string;
-  agentProfile?: {
-    bio?: string;
-    yearsOfExperience?: number;
-    languages?: string[];
-    rating?: { average?: number; count?: number };
+export interface AgentProfile {
+  licenseNumber?: string;
+  specialization?: string[];
+  yearsOfExperience?: number;
+  rating?: {
+    average: number;
+    count: number;
   };
-  propertyCount: number;
+  verified?: boolean;
+  bio?: string;
+  languages?: string[];
 }
 
 export interface User {
@@ -38,7 +29,60 @@ export interface User {
   lastName?: string;
   avatar?: string;
   phone?: string;
+  location?: {
+    address?: string;
+    city?: string;
+    state?: string;
+    zipCode?: string;
+    country?: string;
+  };
   agentProfile?: AgentProfile;
+  assignedProperties?: number;
+  preferences?: UserPreferences;
+}
+
+export interface AgentReview {
+  _id: string;
+  propertyTitle: string;
+  propertyLocation?: string;
+  rating: number;
+  comment?: string;
+  submittedAt?: string;
+  buyerName?: string;
+  wouldRecommend?: boolean;
+  overallExperience?: string;
+}
+
+export interface AgentPublicProfile {
+  agent: User;
+  averageRating: number;
+  reviewCount: number;
+  assignedProperties: number;
+  reviews: AgentReview[];
+}
+
+export interface RentalDetails {
+  deposit?: number;
+  petFee?: number;
+  petPolicy?: "allowed" | "not_allowed" | "negotiable";
+  furnished?: boolean;
+  laundry?: "in_unit" | "shared" | "none";
+  acceptsApplications?: boolean;
+  monthlyFees?: Array<{ label: string; amount: number }>;
+  utilitiesIncluded?: string[];
+}
+
+export interface PropertyFeatures {
+  airConditioning?: boolean;
+  heating?: boolean;
+  parking?: boolean;
+  pool?: boolean;
+  gym?: boolean;
+  security?: boolean;
+  elevator?: boolean;
+  balcony?: boolean;
+  fireplace?: boolean;
+  garden?: boolean;
 }
 
 export interface Property {
@@ -47,24 +91,43 @@ export interface Property {
   description: string;
   type: string;
   status: string;
+  listingType?: "sale" | "rent" | "both";
   price: number;
   bedrooms: number;
   bathrooms: number;
   squareFeet: number;
-  images: Array<{ url: string; isPrimary?: boolean }>;
+  images: Array<{ url: string; isPrimary?: boolean; caption?: string }>;
   location: {
     address?: string;
     city?: string;
     state?: string;
+    zipCode?: string;
     coordinates?: {
       coordinates: [number, number];
     };
   };
+  amenities?: string[];
+  features?: PropertyFeatures;
+  rentalDetails?: RentalDetails;
+  availabilityDate?: string;
   sellerId?: User;
   agentId?: User;
+  rating?: {
+    average: number;
+    count: number;
+  };
   views?: number;
   inquiries?: number;
   favorites?: number;
+  featured?: boolean;
+  promotion?: {
+    type?: "advertisement" | "sponsored";
+    campaignId?: string;
+    expiresAt?: string;
+  };
+  promotionPriority?: number;
+  viewershipEnabled?: boolean;
+  viewershipPausedAt?: string;
   createdAt?: string;
 }
 
@@ -117,6 +180,7 @@ export interface Tour {
   startTime: string;
   endTime: string;
   status: "pending" | "confirmed" | "reschedule_requested" | "reschedule_pending_buyer_approval" | "completed" | "cancelled" | "declined";
+  tourType?: "in-person" | "virtual" | "open-house";
   message?: string;
   cancellationReason?: string;
   rescheduleHistory?: TourRescheduleHistory[];
@@ -149,5 +213,31 @@ export interface Favorite {
   _id: string;
   propertyId: Property;
   notes?: string;
+}
+
+export type RentalApplicationStatus =
+  | "pending"
+  | "reviewing"
+  | "approved"
+  | "rejected"
+  | "withdrawn";
+
+export interface RentalApplication {
+  _id: string;
+  propertyId: Property;
+  buyerId: User;
+  sellerId: User;
+  agentId?: User;
+  fullName: string;
+  email: string;
+  phone?: string;
+  moveInDate?: string;
+  message?: string;
+  status: RentalApplicationStatus;
+  statusNote?: string;
+  reviewedAt?: string;
+  reviewedBy?: User;
+  createdAt?: string;
+  updatedAt?: string;
 }
 

@@ -7,6 +7,7 @@ import { useAuth } from "@/context/AuthContext";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { User, Mail, Phone, Save, Lock, Eye, EyeOff } from "lucide-react";
+import { DistanceUnitSettings } from "@/components/settings/DistanceUnitSettings";
 
 const AdminSettings = () => {
   const { user: authUser, updateUser } = useAuth();
@@ -155,6 +156,8 @@ const AdminSettings = () => {
               </Button>
             </div>
           </form>
+
+          <DistanceUnitSettings />
 
           {/* Password Change */}
           <form onSubmit={handlePasswordSubmit} className="bg-card border border-border rounded-xl p-6">

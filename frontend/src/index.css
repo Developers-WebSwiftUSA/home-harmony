@@ -81,3 +81,37 @@
     @apply py-16 md:py-24 px-4 md:px-8;
   }
 }
+
+/* Leaflet map marker styles */
+.leaflet-price-marker-icon {
+  background: transparent !important;
+  border: none !important;
+}
+
+.leaflet-price-marker-label {
+  background: hsl(var(--background));
+  color: hsl(var(--foreground));
+  border: 2px solid hsl(var(--primary));
+  border-radius: 9999px;
+  padding: 4px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.2;
+  white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  transform: translate(-50%, -50%);
+}
+
+.leaflet-price-marker-label.is-active {
+  background: hsl(var(--primary));
+  color: hsl(var(--primary-foreground));
+}
+
+.leaflet-container {
+  font-family: inherit;
+  z-index: 0;
+}
+
+.leaflet-marker-icon {
+  z-index: 600 !important;
+}

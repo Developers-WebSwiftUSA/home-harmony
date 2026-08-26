@@ -12,14 +12,13 @@
    npm install
    ```
 
-2. **Create Environment File (repository root — one file for backend + frontends)**
+2. **Create Environment File**
    ```bash
-   cd ..
    cp .env.example .env
    ```
 
 3. **Configure Environment Variables**
-   Edit the repo root `.env` file and set:
+   Edit `.env` file and set:
    - `MONGODB_URI=mongodb://localhost:27017/real-estate-platform`
    - `JWT_SECRET=your-secret-key-here` (use a strong random string)
    - Other optional services (email, SMS) can be configured later

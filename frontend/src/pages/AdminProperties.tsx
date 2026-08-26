@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { DashboardSidebar } from "./AdminDashboard";
 import { propertyService } from "@/services/property.service";
 import property1 from "@/assets/property-1.jpg";
+import { PropertyImage } from "@/components/PropertyImage";
+import { getPropertyPrimaryImage } from "@/lib/propertyImage";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Eye, CheckCircle, Clock, XCircle, Trash2 } from "lucide-react";
@@ -63,9 +65,10 @@ const PropertyCard = ({
   return (
     <div className="bg-card border border-border rounded-xl p-4 flex gap-4 hover:border-primary/30 transition-colors">
       <Link to={`/admin/properties/${property._id}`} className="flex gap-4 flex-1 min-w-0">
-        <img
-          src={property.images?.[0]?.url || property1}
+        <PropertyImage
+          src={getPropertyPrimaryImage(property.images, property1)}
           alt={property.title}
+          fallback={property1}
           className="w-28 h-20 object-cover rounded-md flex-shrink-0"
         />
         <div className="flex-1 min-w-0">

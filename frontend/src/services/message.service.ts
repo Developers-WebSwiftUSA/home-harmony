@@ -1,6 +1,6 @@
 import { apiRequest } from "@/api/client";
 import { ApiResponse } from "@/types/api";
-import { Conversation, Message } from "@/types/models";
+import { Conversation, Message, User } from "@/types/models";
 
 export const messageService = {
   conversations: () =>
@@ -12,6 +12,15 @@ export const messageService = {
       auth: true,
     });
   },
+
+  getPropertyConversation: (propertyId: string) =>
+    apiRequest<
+      ApiResponse<Conversation> & {
+        contactUser?: User;
+        contactedRole?: "agent" | "seller";
+        isNewConversation?: boolean;
+      }
+    >(`/messages/property/${propertyId}/conversation`, { auth: true }),
 
   getMessages: (conversationId: string) =>
     apiRequest<ApiResponse<Message[]>>(`/messages/conversations/${conversationId}/messages`, {

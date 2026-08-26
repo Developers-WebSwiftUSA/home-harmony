@@ -1,20 +1,23 @@
-# Full-stack image: API + built SPA (Express serves frontend/dist).
-# Build from repository root:
-#   docker build -f backend/Dockerfile .
-
-FROM node:18-alpine AS frontend-builder
-WORKDIR /src
-COPY frontend/package*.json ./
-RUN npm ci
-COPY frontend/ ./
-RUN npm run build
-
+# Use Node.js 18 LTS
 FROM node:18-alpine
+
+# Set working directory
 WORKDIR /app
-COPY backend/package*.json ./
-RUN npm install --omit=dev
-COPY backend/ ./
-COPY --from=frontend-builder /src/dist /frontend/dist
+
+# Copy package files
+COPY package*.json ./
+
+# Install dependencies
+RUN npm ci --only=production
+
+# Copy application code
+COPY . .
+
+# Create uploads directory
 RUN mkdir -p uploads
+
+# Expose port
 EXPOSE 5000
+
+# Start the application
 CMD ["node", "server.js"]

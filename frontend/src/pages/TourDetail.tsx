@@ -1,6 +1,6 @@
 import { useParams, useNavigate, Link } from "react-router-dom";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, Calendar, Clock, MapPin, User, MessageSquare, CheckCircle, XCircle, RefreshCw, Star, ThumbsUp, ThumbsDown } from "lucide-react";
+import { ArrowLeft, Calendar, Clock, MapPin, User, MessageSquare, CheckCircle, XCircle, RefreshCw, Star, ThumbsUp, ThumbsDown, Home } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
@@ -11,6 +11,9 @@ import { toast } from "sonner";
 import { Tour, TourRescheduleHistory } from "@/types/models";
 import { useState } from "react";
 import { cn } from "@/lib/utils";
+import { isTourPast, isTourUpcoming, toLocalDateString } from "@/lib/tourDate";
+import { getUserId, isSameUser } from "@/lib/userDisplay";
+import { getPropertyDetailPath } from "@/lib/propertyRoutes";
 import AnimatedCalendar from "@/components/tours/AnimatedCalendar";
 import AnimatedTimePicker from "@/components/tours/AnimatedTimePicker";
 
@@ -41,6 +44,23 @@ const TourDetail = () => {
   });
 
   const tour = data?.data;
+
+  const { data: rescheduleAvailabilityData } = useQuery({
+    queryKey: ["tour-reschedule-availability", tour?.propertyId?._id, rescheduleDate?.toISOString().split("T")[0], id],
+    queryFn: () => {
+      if (!tour?.propertyId?._id || !rescheduleDate) {
+        return Promise.resolve({ success: true, data: [] });
+      }
+      return tourService.availability(
+        tour.propertyId._id,
+        rescheduleDate.toISOString().split("T")[0],
+        id
+      );
+    },
+    enabled: rescheduleModalOpen && !!rescheduleDate && !!tour?.propertyId?._id,
+  });
+
+  const rescheduleSlots = rescheduleAvailabilityData?.data || [];
 
   const approveMutation = useMutation({
     mutationFn: () => tourService.approve(id!),
@@ -73,7 +93,7 @@ const TourDetail = () => {
         throw new Error("Please select a date and time");
       }
       return tourService.reschedule(id!, {
-        newDate: rescheduleDate.toISOString().split("T")[0],
+        newDate: toLocalDateString(rescheduleDate),
         newStartTime: rescheduleTime.startTime,
         newEndTime: rescheduleTime.endTime,
         reason: rescheduleReason,
@@ -128,6 +148,23 @@ const TourDetail = () => {
     },
   });
 
+  const cancelMutation = useMutation({
+    mutationFn: (reason: string) => {
+      if (!user?.role) throw new Error("Not authenticated");
+      return tourService.cancel(id!, user.role, reason || undefined);
+    },
+    onSuccess: () => {
+      toast.success("Tour cancelled");
+      queryClient.invalidateQueries({ queryKey: ["tour-detail", id] });
+      queryClient.invalidateQueries({ queryKey: ["buyer-tours"] });
+      queryClient.invalidateQueries({ queryKey: ["seller-tours"] });
+      queryClient.invalidateQueries({ queryKey: ["agent-tours"] });
+    },
+    onError: (error: any) => {
+      toast.error(error?.message || "Failed to cancel tour");
+    },
+  });
+
   const submitReviewMutation = useMutation({
     mutationFn: () => {
       if (reviewForm.propertyRating === 0) {
@@ -152,49 +189,86 @@ const TourDetail = () => {
     },
   });
 
-  const canApprove = () => {
+  const isAdmin = () => user?.role === "admin";
+  const isBuyer = () => user?.role === "buyer" && isSameUser(user, tour?.buyerId);
+  const isSeller = () => user?.role === "seller" && isSameUser(user, tour?.sellerId);
+  const isAssignedAgent = () =>
+    user?.role === "agent" && tour?.agentId && isSameUser(user, tour.agentId);
+  const canManageTour = () => isAdmin() || isSeller() || isAssignedAgent();
+
+  const canApproveTour = () => {
     if (!user || !tour) return false;
-    if (tour.status === "pending") {
-      return user.role === "seller" || user.role === "agent" || user.role === "admin";
-    }
-    if (tour.status === "reschedule_pending_buyer_approval") {
-      return user.role === "buyer" && user._id === tour.buyerId._id;
-    }
-    return false;
+    return tour.status === "pending" && canManageTour();
+  };
+
+  const canDeclineTour = () => canApproveTour();
+
+  const canApproveReschedule = () => {
+    if (!user || !tour) return false;
+    return tour.status === "reschedule_pending_buyer_approval" && isBuyer();
   };
 
   const canReschedule = () => {
     if (!user || !tour) return false;
-    if (tour.status === "confirmed" || tour.status === "pending") {
-      return user.role === "seller" || user.role === "agent" || user.role === "admin";
-    }
-    return false;
+    return (
+      (tour.status === "confirmed" || tour.status === "pending") && canManageTour()
+    );
   };
 
   const canMarkComplete = () => {
     if (!user || !tour) return false;
     return (
       tour.status === "confirmed" &&
-      user.role === "buyer" &&
-      user._id === tour.buyerId._id &&
-      new Date(`${tour.date}T${tour.startTime}`) < new Date()
+      isBuyer() &&
+      isTourPast(tour.date, tour.startTime)
     );
+  };
+
+  const canCancel = () => {
+    if (!user || !tour) return false;
+    if (!["pending", "confirmed", "reschedule_pending_buyer_approval"].includes(tour.status)) {
+      return false;
+    }
+    return isAdmin() || isBuyer() || isSeller() || isAssignedAgent();
   };
 
   const canReview = () => {
     if (!user || !tour) return false;
-    const uid = user._id || user.id;
-    const buyerId = tour.buyerId._id || tour.buyerId;
-    const sellerId = tour.sellerId._id || tour.sellerId;
-    const isBuyer = user.role === "buyer" && String(uid) === String(buyerId);
-    const isSeller = user.role === "seller" && String(uid) === String(sellerId);
-    return tour.status === "completed" && (isBuyer || isSeller) && !tour.feedback;
+    return tour.status === "completed" && isBuyer() && !tour.feedback;
   };
+
+  const canMessage = () => {
+    if (!user || !tour?.propertyId?._id) return false;
+    return ["buyer", "seller", "agent", "admin"].includes(user.role);
+  };
+
+  const role = user?.role || "buyer";
+  const messagesBase = `/${role}/messages`;
+  const messagesPath = (() => {
+    if (!tour) return messagesBase;
+    if (role === "buyer" && tour.propertyId?._id) {
+      return `${messagesBase}?propertyId=${tour.propertyId._id}`;
+    }
+    const buyerId = getUserId(tour.buyerId);
+    if (buyerId && ["seller", "agent", "admin"].includes(role)) {
+      return `${messagesBase}?userId=${buyerId}`;
+    }
+    return messagesBase;
+  })();
+
+  const hasRoleActions =
+    canApproveTour() ||
+    canDeclineTour() ||
+    canApproveReschedule() ||
+    canReschedule() ||
+    canMarkComplete() ||
+    canReview() ||
+    canCancel();
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-muted flex">
-        <DashboardSidebar active="Tours" role={user?.role || "buyer"} />
+        <DashboardSidebar active={user?.role === "buyer" ? "My Tours" : "Tours"} role={user?.role || "buyer"} />
         <main className="flex-1 ml-64 p-8">
           <div className="text-center py-12">
             <p className="text-muted-foreground">Loading tour details...</p>
@@ -207,7 +281,7 @@ const TourDetail = () => {
   if (!tour) {
     return (
       <div className="min-h-screen bg-muted flex">
-        <DashboardSidebar active="Tours" role={user?.role || "buyer"} />
+        <DashboardSidebar active={user?.role === "buyer" ? "My Tours" : "Tours"} role={user?.role || "buyer"} />
         <main className="flex-1 ml-64 p-8">
           <div className="text-center py-12">
             <p className="text-muted-foreground mb-4">Tour not found</p>
@@ -225,7 +299,10 @@ const TourDetail = () => {
 
   return (
     <div className="min-h-screen bg-muted flex">
-      <DashboardSidebar active="Tours" role={user?.role || "buyer"} />
+      <DashboardSidebar
+        active={user?.role === "buyer" ? "My Tours" : user?.role === "seller" ? "Tour Requests" : "Tours"}
+        role={user?.role || "buyer"}
+      />
       <main className="flex-1 ml-64 p-8">
         {/* Header */}
         <div className="mb-6">
@@ -298,6 +375,17 @@ const TourDetail = () => {
                   </div>
                 </div>
               </div>
+
+              {tour.tourType && (
+                <div className="mb-6">
+                  <span className="text-xs font-medium text-muted-foreground uppercase tracking-wide">
+                    Tour Type
+                  </span>
+                  <div className="text-sm font-medium text-foreground capitalize mt-1">
+                    {tour.tourType.replace(/-/g, " ")}
+                  </div>
+                </div>
+              )}
 
               {/* Status Badge */}
               <div className="mb-6">
@@ -388,7 +476,7 @@ const TourDetail = () => {
                           </div>
                         )}
                       </div>
-                      {canApprove() && (
+                      {canApproveReschedule() && (
                         <div className="flex gap-2">
                           <Button
                             size="sm"
@@ -664,32 +752,79 @@ const TourDetail = () => {
             <div className="bg-card border border-border rounded-xl p-6">
               <h3 className="font-heading font-bold text-foreground mb-4">Actions</h3>
               <div className="space-y-2">
-                {canApprove() && tour.status === "pending" && (
+                {tour.propertyId?._id && (
+                  <Button variant="outline" className="w-full gap-2" asChild>
+                    <Link to={getPropertyDetailPath(tour.propertyId)}>
+                      <Home className="w-4 h-4" />
+                      View Property
+                    </Link>
+                  </Button>
+                )}
+
+                {canMessage() && (
+                  <Button variant="outline" className="w-full gap-2" asChild>
+                    <Link to={messagesPath}>
+                      <MessageSquare className="w-4 h-4" />
+                      Send Message
+                    </Link>
+                  </Button>
+                )}
+
+                {canApproveTour() && (
+                  <Button
+                    className="w-full gap-2"
+                    onClick={() => approveMutation.mutate()}
+                    disabled={approveMutation.isPending}
+                  >
+                    <CheckCircle className="w-4 h-4" />
+                    Approve Tour
+                  </Button>
+                )}
+
+                {canDeclineTour() && (
+                  <Button
+                    variant="outline"
+                    className="w-full gap-2"
+                    onClick={() => {
+                      const reason = prompt("Reason for declining (optional):");
+                      if (reason !== null) {
+                        declineMutation.mutate(reason);
+                      }
+                    }}
+                    disabled={declineMutation.isPending}
+                  >
+                    <XCircle className="w-4 h-4" />
+                    Decline Tour
+                  </Button>
+                )}
+
+                {canApproveReschedule() && (
                   <>
                     <Button
                       className="w-full gap-2"
-                      onClick={() => approveMutation.mutate()}
-                      disabled={approveMutation.isPending}
+                      onClick={() => approveRescheduleMutation.mutate()}
+                      disabled={approveRescheduleMutation.isPending}
                     >
                       <CheckCircle className="w-4 h-4" />
-                      Approve Tour
+                      Approve Reschedule
                     </Button>
                     <Button
                       variant="outline"
                       className="w-full gap-2"
                       onClick={() => {
-                        const reason = prompt("Reason for declining (optional):");
+                        const reason = prompt("Reason for rejection (optional):");
                         if (reason !== null) {
-                          declineMutation.mutate(reason);
+                          rejectRescheduleMutation.mutate(reason);
                         }
                       }}
-                      disabled={declineMutation.isPending}
+                      disabled={rejectRescheduleMutation.isPending}
                     >
                       <XCircle className="w-4 h-4" />
-                      Decline Tour
+                      Reject Reschedule
                     </Button>
                   </>
                 )}
+
                 {canReschedule() && (
                   <Button
                     variant="outline"
@@ -700,6 +835,7 @@ const TourDetail = () => {
                     Request Reschedule
                   </Button>
                 )}
+
                 {canMarkComplete() && (
                   <Button
                     className="w-full gap-2"
@@ -710,6 +846,7 @@ const TourDetail = () => {
                     Mark as Complete
                   </Button>
                 )}
+
                 {canReview() && (
                   <Button
                     className="w-full gap-2"
@@ -718,6 +855,43 @@ const TourDetail = () => {
                     <Star className="w-4 h-4" />
                     Submit Review
                   </Button>
+                )}
+
+                {canCancel() && (
+                  <Button
+                    variant="destructive"
+                    className="w-full gap-2"
+                    onClick={() => {
+                      const reason = prompt("Reason for cancellation (optional):");
+                      if (reason !== null) {
+                        cancelMutation.mutate(reason);
+                      }
+                    }}
+                    disabled={cancelMutation.isPending}
+                  >
+                    <XCircle className="w-4 h-4" />
+                    Cancel Tour
+                  </Button>
+                )}
+
+                {!hasRoleActions && (
+                  <div className="rounded-lg bg-muted p-4 text-sm text-muted-foreground">
+                    {tour.status === "pending" && isBuyer() && (
+                      <p>Your tour request is awaiting approval from the seller or agent.</p>
+                    )}
+                    {tour.status === "confirmed" && isBuyer() && isTourUpcoming(tour.date, tour.startTime) && (
+                      <p>Your tour is confirmed. Use the options above to view the property or send a message.</p>
+                    )}
+                    {tour.status === "completed" && (
+                      <p>This tour has been completed.</p>
+                    )}
+                    {(tour.status === "cancelled" || tour.status === "declined") && (
+                      <p>This tour is no longer active.</p>
+                    )}
+                    {!["pending", "confirmed", "completed", "cancelled", "declined"].includes(tour.status) && (
+                      <p>No additional actions are available right now.</p>
+                    )}
+                  </div>
                 )}
               </div>
             </div>
@@ -736,14 +910,17 @@ const TourDetail = () => {
             <div className="space-y-6 mt-4">
               <AnimatedCalendar
                 selectedDate={rescheduleDate}
-                onDateSelect={setRescheduleDate}
+                onDateSelect={(date) => {
+                  setRescheduleDate(date);
+                  setRescheduleTime(null);
+                }}
                 minDate={new Date()}
               />
               {rescheduleDate && (
                 <AnimatedTimePicker
                   selectedTime={rescheduleTime}
                   onTimeSelect={(start, end) => setRescheduleTime({ startTime: start, endTime: end })}
-                  availableSlots={[]}
+                  availableSlots={rescheduleSlots}
                 />
               )}
               <div>

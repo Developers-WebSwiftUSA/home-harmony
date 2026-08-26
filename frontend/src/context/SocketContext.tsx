@@ -1,7 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { io, Socket } from "socket.io-client";
 import { getSocketOrigin } from "@/lib/app-env";
-import { agentNeedsLicenseActivation } from "@/lib/agent";
 import { useAuth } from "./AuthContext";
 
 interface SocketContextType {
@@ -32,7 +31,8 @@ export const SocketProvider = ({ children }: SocketProviderProps) => {
   const { user, isAuthenticated } = useAuth();
 
   useEffect(() => {
-    if (!isAuthenticated || !user || agentNeedsLicenseActivation(user)) {
+    if (!isAuthenticated || !user) {
+      // Disconnect if user logs out
       if (socket) {
         socket.disconnect();
         setSocket(null);

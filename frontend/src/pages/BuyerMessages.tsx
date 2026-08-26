@@ -5,21 +5,45 @@ import { DashboardSidebar } from "./AdminDashboard";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { messageService } from "@/services/message.service";
 import { useAuth } from "@/context/AuthContext";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useSocket } from "@/context/SocketContext";
-import { Message } from "@/types/models";
+import { Message, User } from "@/types/models";
+import { toast } from "sonner";
+import { AgentProfileDialog } from "@/components/AgentProfileDialog";
+import { useUserIdConversationDeepLink } from "@/hooks/useUserIdConversationDeepLink";
 
 const BuyerMessages = () => {
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { socket } = useSocket();
   const [searchParams] = useSearchParams();
+  const propertyIdParam = searchParams.get("propertyId");
   const [selectedConversation, setSelectedConversation] = useState<string | null>(
     searchParams.get("conversation") || null
   );
   const [messageText, setMessageText] = useState("");
   const [search, setSearch] = useState("");
+  const [profileAgentId, setProfileAgentId] = useState<string | null>(null);
+  const [profileOpen, setProfileOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const conv = searchParams.get("conversation");
+    if (conv) setSelectedConversation(conv);
+  }, [searchParams]);
+
+  useUserIdConversationDeepLink({
+    conversationsQueryKey: ["buyer-conversations"],
+    messagesPath: "/buyer/messages",
+    selectedConversation,
+    setSelectedConversation,
+  });
+
+  const selectConversation = (conversationId: string) => {
+    setSelectedConversation(conversationId);
+    navigate(`/buyer/messages?conversation=${encodeURIComponent(conversationId)}`, { replace: true });
+  };
 
   const { data: conversationsData } = useQuery({
     queryKey: ["buyer-conversations"],
@@ -27,6 +51,30 @@ const BuyerMessages = () => {
   });
 
   const conversations = conversationsData?.data || [];
+
+  const propertyConversationMutation = useMutation({
+    mutationFn: (propertyId: string) => messageService.getPropertyConversation(propertyId),
+    onSuccess: (response) => {
+      const conversationId = response.data._id;
+      setSelectedConversation(conversationId);
+      queryClient.invalidateQueries({ queryKey: ["buyer-conversations"] });
+      navigate(`/buyer/messages?conversation=${conversationId}`, { replace: true });
+      if (response.contactedRole === "agent") {
+        toast.success("Opened chat with the assigned agent");
+      }
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Could not open property chat");
+    },
+  });
+
+  const propertyChatHandled = useRef(false);
+
+  useEffect(() => {
+    if (!propertyIdParam || selectedConversation || propertyChatHandled.current) return;
+    propertyChatHandled.current = true;
+    propertyConversationMutation.mutate(propertyIdParam);
+  }, [propertyIdParam, selectedConversation]);
 
   const selectedConv = conversations.find((c) => c._id === selectedConversation) || null;
 
@@ -116,6 +164,20 @@ const BuyerMessages = () => {
     return conv?.participants.find((p) => (p._id || p.id) !== (user?._id || user?.id));
   };
 
+  const openAgentProfile = (participant?: User | null) => {
+    const participantId = participant?._id || participant?.id;
+    if (participant?.role !== "agent" || !participantId) return;
+    setProfileAgentId(String(participantId));
+    setProfileOpen(true);
+  };
+
+  const chatParticipant = selectedConv ? getParticipant(selectedConv._id) : null;
+  const chatParticipantName =
+    `${chatParticipant?.firstName || ""} ${chatParticipant?.lastName || ""}`.trim() ||
+    chatParticipant?.email ||
+    "Unknown";
+  const isAgentChat = chatParticipant?.role === "agent";
+
   return (
     <div className="min-h-screen bg-muted flex">
       <DashboardSidebar active="Messages" role="buyer" />
@@ -151,7 +213,7 @@ const BuyerMessages = () => {
                 return (
                   <button
                     key={conv._id}
-                    onClick={() => setSelectedConversation(conv._id)}
+                    onClick={() => selectConversation(conv._id)}
                     className={`w-full p-4 border-b border-border text-left hover:bg-muted transition-colors ${
                       selectedConversation === conv._id ? "bg-muted" : ""
                     }`}
@@ -162,7 +224,20 @@ const BuyerMessages = () => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="font-medium text-foreground text-sm">{displayName}</span>
+                          {other?.role === "agent" ? (
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                openAgentProfile(other);
+                              }}
+                              className="font-medium text-foreground text-sm hover:text-primary hover:underline text-left"
+                            >
+                              {displayName}
+                            </button>
+                          ) : (
+                            <span className="font-medium text-foreground text-sm">{displayName}</span>
+                          )}
                           <span className="text-xs text-muted-foreground">{conv.lastMessageAt ? new Date(conv.lastMessageAt).toLocaleDateString() : ""}</span>
                         </div>
                         <p className="text-xs text-muted-foreground truncate mb-1">{conv.lastMessage?.content || "No messages yet"}</p>
@@ -205,15 +280,31 @@ const BuyerMessages = () => {
                       </span>
                     </div>
                     <div>
-                      <div className="font-medium text-foreground">
-                        {`${getParticipant(selectedConv._id)?.firstName || ""} ${getParticipant(selectedConv._id)?.lastName || ""}`.trim() ||
-                          getParticipant(selectedConv._id)?.email ||
-                          "Unknown"}
+                      {isAgentChat ? (
+                        <button
+                          type="button"
+                          onClick={() => openAgentProfile(chatParticipant)}
+                          className="font-medium text-foreground hover:text-primary hover:underline text-left"
+                        >
+                          {chatParticipantName}
+                        </button>
+                      ) : (
+                        <div className="font-medium text-foreground">{chatParticipantName}</div>
+                      )}
+                      <div className="text-xs text-muted-foreground capitalize">
+                        {chatParticipant?.role || ""}
                       </div>
-                      <div className="text-xs text-muted-foreground">{getParticipant(selectedConv._id)?.role || ""}</div>
                     </div>
                   </div>
-                  <Button size="sm" variant="outline">View Profile</Button>
+                  {isAgentChat && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => openAgentProfile(chatParticipant)}
+                    >
+                      View Profile
+                    </Button>
+                  )}
                 </div>
               </div>
 
@@ -290,6 +381,12 @@ const BuyerMessages = () => {
           )}
         </div>
       </main>
+
+      <AgentProfileDialog
+        agentId={profileAgentId}
+        open={profileOpen}
+        onOpenChange={setProfileOpen}
+      />
     </div>
   );
 };

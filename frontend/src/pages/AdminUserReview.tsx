@@ -6,28 +6,43 @@ import { userService } from "@/services/user.service";
 import { passwordResetService } from "@/services/passwordReset.service";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { ArrowLeft, Save, KeyRound, Eye, EyeOff, Copy, Trash2, Mail, Phone, User, BadgeCheck } from "lucide-react";
+import { ArrowLeft, Save, KeyRound, Eye, EyeOff, Copy, Trash2, Mail, Phone, User, Star } from "lucide-react";
 import { UserRole } from "@/types/models";
+import { useAuth } from "@/context/AuthContext";
+import { tourService } from "@/services/tour.service";
+import { TourReviewsList } from "@/components/TourReviewsList";
+import { getUserReviewSummary } from "@/lib/reviewStats";
+import { formatRating, getAgentRating } from "@/lib/ratings";
+import { RatingStars } from "@/components/RatingStars";
 
 const AdminUserReview = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { isAuthenticated } = useAuth();
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-user", id],
     queryFn: () => userService.getById(id!),
-    enabled: !!id,
+    enabled: isAuthenticated && !!id,
   });
 
   const { data: passwordResetsData } = useQuery({
     queryKey: ["admin-user-password-resets", id],
     queryFn: () => passwordResetService.list("approved", id!),
-    enabled: !!id,
+    enabled: isAuthenticated && !!id,
+  });
+
+  const { data: reviewsData, isLoading: loadingReviews } = useQuery({
+    queryKey: ["admin-user-reviews", id],
+    queryFn: () => tourService.listReviews({ userId: id!, limit: 200 }),
+    enabled: isAuthenticated && !!id,
   });
 
   const user = data?.data;
   const passwordResets = passwordResetsData?.data || [];
+  const userReviews = reviewsData?.data || [];
+  const reviewSummary = user ? getUserReviewSummary(userReviews, id!, user.role) : null;
   // Get the most recent approved password reset (they're already sorted by requestedAt descending)
   const latestPasswordReset = passwordResets.find((r) => r.status === "approved" && r.newPassword) || null;
 
@@ -43,7 +58,6 @@ const AdminUserReview = () => {
   const [resetPassword, setResetPassword] = useState<string>("");
   const [showPassword, setShowPassword] = useState(false);
   const [showCurrentPassword, setShowCurrentPassword] = useState(false);
-  const [issuedAgentLicense, setIssuedAgentLicense] = useState<string>("");
 
   // Update form when user loads
   useEffect(() => {
@@ -86,18 +100,6 @@ const AdminUserReview = () => {
     onSuccess: () => {
       toast.success("User deleted");
       navigate("/admin/users");
-    },
-  });
-
-  const issueAgentLicenseMutation = useMutation({
-    mutationFn: () => userService.issueAgentLicense(id!),
-    onSuccess: (res) => {
-      const code = res.data?.approvalCode;
-      if (code) {
-        setIssuedAgentLicense(code);
-        toast.success("Approval license code generated — copy it and send it to the agent.");
-      }
-      queryClient.invalidateQueries({ queryKey: ["admin-user", id] });
     },
   });
 
@@ -281,62 +283,39 @@ const AdminUserReview = () => {
                 </Button>
               </div>
             </form>
+
+            {/* Tour Reviews */}
+            <div className="bg-card border border-border rounded-xl p-6">
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="font-heading font-bold text-foreground flex items-center gap-2">
+                    <Star className="w-5 h-5 text-primary" />
+                    Tour Reviews
+                  </h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    {reviewSummary && reviewSummary.count > 0
+                      ? `${reviewSummary.count} ${reviewSummary.label}${
+                          reviewSummary.average > 0
+                            ? ` · ${formatRating(reviewSummary.average)} avg`
+                            : ""
+                        }`
+                      : "No reviews linked to this user yet"}
+                  </p>
+                </div>
+                {user.role === "agent" && (
+                  <RatingStars rating={getAgentRating(user)} size="sm" />
+                )}
+              </div>
+              <TourReviewsList
+                tours={userReviews}
+                isLoading={loadingReviews}
+                emptyMessage="This user has no tour reviews yet."
+              />
+            </div>
           </div>
 
           {/* Sidebar Actions */}
           <div className="space-y-6">
-            {user.role === "agent" && (
-              <div className="bg-card border border-border rounded-xl p-6">
-                <h2 className="font-heading font-bold text-foreground mb-2 flex items-center gap-2">
-                  <BadgeCheck className="w-4 h-4 text-primary" />
-                  Agent license approval
-                </h2>
-                <p className="text-xs text-muted-foreground mb-4">
-                  Generate a one-time license code. The agent enters it on their dashboard to unlock tours, clients,
-                  properties, and messaging. Generating a new code invalidates the previous one.
-                </p>
-                <p className="text-sm mb-3">
-                  <span className="text-muted-foreground">Status:</span>{" "}
-                  <span className="font-medium capitalize">
-                    {user.agentProfile?.verified ? "License active" : "Awaiting agent activation"}
-                  </span>
-                </p>
-                {!user.agentProfile?.verified && (
-                  <Button
-                    className="w-full gap-2 mb-3"
-                    variant="secondary"
-                    disabled={issueAgentLicenseMutation.isPending}
-                    onClick={() => {
-                      if (window.confirm(`Generate a new approval license code for ${user.email}?`)) {
-                        issueAgentLicenseMutation.mutate();
-                      }
-                    }}
-                  >
-                    <KeyRound className="w-4 h-4" />
-                    {issueAgentLicenseMutation.isPending ? "Generating…" : "Generate approval license code"}
-                  </Button>
-                )}
-                {issuedAgentLicense && (
-                  <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg space-y-2">
-                    <p className="text-xs font-medium text-amber-900">Latest generated code (copy now — not stored):</p>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-sm text-amber-950 flex-1 break-all">{issuedAgentLicense}</span>
-                      <button
-                        type="button"
-                        className="p-1.5 rounded hover:bg-amber-100"
-                        onClick={() => {
-                          navigator.clipboard.writeText(issuedAgentLicense);
-                          toast.success("Code copied");
-                        }}
-                      >
-                        <Copy className="w-4 h-4 text-amber-900" />
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
             {/* Password Management */}
             <div className="bg-card border border-border rounded-xl p-6">
               <h2 className="font-heading font-bold text-foreground mb-4">Password Management</h2>

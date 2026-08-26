@@ -1,15 +1,6 @@
 import { ApiError } from "@/types/api";
 
-function resolveApiBaseUrl(): string {
-  const raw = import.meta.env.VITE_API_URL;
-  if (typeof raw === "string" && raw.trim() !== "") {
-    return raw.trim().replace(/\/$/, "") || "/api";
-  }
-  if (import.meta.env.PROD) return "/api";
-  return "http://localhost:5000/api".replace(/\/$/, "");
-}
-
-const API_BASE_URL = resolveApiBaseUrl();
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:5000/api";
 
 type RequestOptions = RequestInit & {
   auth?: boolean;

@@ -15,7 +15,14 @@ const ProtectedRoute = ({ children, roles }: Props) => {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" state={{ from: location }} replace />;
+    const redirect = `${location.pathname}${location.search}`;
+    return (
+      <Navigate
+        to={`/login?redirect=${encodeURIComponent(redirect)}`}
+        state={{ from: location }}
+        replace
+      />
+    );
   }
 
   if (roles && user?.role && !roles.includes(user.role)) {
@@ -26,4 +33,3 @@ const ProtectedRoute = ({ children, roles }: Props) => {
 };
 
 export default ProtectedRoute;
-

@@ -1,10 +1,18 @@
-import { Link } from "react-router-dom";
-import { Home, Calendar, BarChart3, Bell, Plus, Eye, Edit, TrendingUp, DollarSign } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { Home, Calendar, BarChart3, Bell, Plus, Eye, Edit, TrendingUp, DollarSign, Users } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DashboardSidebar } from "./AdminDashboard";
 import { useQuery } from "@tanstack/react-query";
 import { propertyService } from "@/services/property.service";
 import { tourService } from "@/services/tour.service";
+import { useAuth } from "@/context/AuthContext";
+import { UserAvatar } from "@/components/UserAvatar";
+import { getDisplayName } from "@/lib/userDisplay";
+import { analyticsService } from "@/services/analytics.service";
+import { crmService } from "@/services/crm.service";
+import { formatOverviewValue } from "@/lib/analyticsDisplay";
+import { DashboardTabPills, listingTypeTabs, marketTabs } from "@/components/dashboard/DashboardTabPills";
+import { isRentalListing } from "@/features/rentals/lib/rentalFormat";
 import property1 from "@/assets/property-1.jpg";
 import property2 from "@/assets/property-2.jpg";
 
@@ -19,6 +27,8 @@ const tourRequests = [
 ];
 
 const SellerDashboard = () => {
+  const navigate = useNavigate();
+  const { user } = useAuth();
   const { data: listingsData } = useQuery({
     queryKey: ["seller-dashboard-listings"],
     queryFn: () => propertyService.mine(),
@@ -27,9 +37,29 @@ const SellerDashboard = () => {
     queryKey: ["seller-dashboard-tours"],
     queryFn: () => tourService.list(),
   });
+  const { data: analyticsData } = useQuery({
+    queryKey: ["seller-dashboard-analytics"],
+    queryFn: () => analyticsService.seller(),
+  });
+  const { data: saleBuyersData } = useQuery({
+    queryKey: ["crm-buyers", "seller", "sale"],
+    queryFn: () => crmService.myBuyers("sale"),
+  });
+  const { data: rentBuyersData } = useQuery({
+    queryKey: ["crm-buyers", "seller", "rent"],
+    queryFn: () => crmService.myBuyers("rent"),
+  });
+
+  const allProperties = listingsData?.data || [];
+  const saleListingCount = allProperties.filter(
+    (p) => p.listingType === "sale" || p.listingType === "both"
+  ).length;
+  const rentListingCount = allProperties.filter((p) => isRentalListing(p)).length;
+  const saleBuyerCount = saleBuyersData?.data?.length || 0;
+  const rentBuyerCount = rentBuyersData?.data?.length || 0;
 
   const listingsLive =
-    (listingsData?.data || []).slice(0, 3).map((item) => ({
+    allProperties.slice(0, 3).map((item) => ({
       id: item._id,
       image: item.images?.[0]?.url || property1,
       title: item.title,
@@ -37,6 +67,7 @@ const SellerDashboard = () => {
       status: item.status === "pending" ? "Pending Review" : item.status.charAt(0).toUpperCase() + item.status.slice(1),
       views: item.views || 0,
       inquiries: item.inquiries || 0,
+      listingType: item.listingType,
     })) || listings;
 
   const tourRequestsLive =
@@ -51,8 +82,12 @@ const SellerDashboard = () => {
           : tour.status.charAt(0).toUpperCase() + tour.status.slice(1),
     })) || tourRequests;
 
-  const totalViews = listingsLive.reduce((sum, i) => sum + i.views, 0);
-  const pendingTours = tourRequestsLive.filter((t) => t.status === "Pending").length;
+  const analytics = analyticsData?.data;
+  const totalViews = analytics?.overview.find((o) => o.label === "Total Views")?.value
+    ?? listingsLive.reduce((sum, i) => sum + i.views, 0);
+  const tourRequestTotal = analytics?.overview.find((o) => o.label === "Tour Requests")?.value
+    ?? tourRequestsLive.length;
+  const portfolioValue = analytics?.overview.find((o) => o.label === "Avg. Price");
 
   return (
     <div className="min-h-screen bg-muted flex">
@@ -60,9 +95,14 @@ const SellerDashboard = () => {
 
       <main className="flex-1 ml-64 p-8">
         <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-heading font-bold text-foreground">Seller Dashboard</h1>
-            <p className="text-sm text-muted-foreground">Manage your listings and tours</p>
+          <div className="flex items-center gap-4">
+            <UserAvatar user={user} size="lg" />
+            <div>
+              <h1 className="text-2xl font-heading font-bold text-foreground">Seller Dashboard</h1>
+              <p className="text-sm text-muted-foreground">
+                Welcome back, {getDisplayName(user)}
+              </p>
+            </div>
           </div>
           <div className="flex items-center gap-3">
             <Link to="/seller/listings/new">
@@ -77,10 +117,18 @@ const SellerDashboard = () => {
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
           {[
-            { icon: Home, label: "Active Listings", value: String(listingsLive.length) },
+            {
+              icon: Home,
+              label: "Active Listings",
+              value: String(analytics?.listingBreakdown.active ?? listingsLive.length),
+            },
             { icon: Eye, label: "Total Views", value: totalViews.toLocaleString() },
-            { icon: Calendar, label: "Tour Requests", value: String(pendingTours) },
-            { icon: DollarSign, label: "Est. Portfolio", value: "$--" },
+            { icon: Calendar, label: "Tour Requests", value: String(tourRequestTotal) },
+            {
+              icon: DollarSign,
+              label: "Avg. Listing Price",
+              value: portfolioValue ? formatOverviewValue(portfolioValue) : "$--",
+            },
           ].map((s) => (
             <div key={s.label} className="bg-card border border-border rounded-xl p-5">
               <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-3">
@@ -90,6 +138,37 @@ const SellerDashboard = () => {
               <div className="text-xs text-muted-foreground">{s.label}</div>
             </div>
           ))}
+        </div>
+
+        <div className="mb-8">
+          <h2 className="font-heading font-bold text-foreground mb-4">Listings by Type</h2>
+          <DashboardTabPills
+            variant="card"
+            tabs={listingTypeTabs(allProperties.length, saleListingCount, rentListingCount)}
+            activeKey="all"
+            onChange={() => navigate("/seller/listings")}
+            className="mb-2"
+          />
+          <Link to="/seller/listings">
+            <Button variant="ghost" size="sm" className="text-xs text-primary px-0 hover:bg-transparent">
+              Manage all listings →
+            </Button>
+          </Link>
+        </div>
+
+        <div className="mb-8">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="font-heading font-bold text-foreground">My Buyers</h2>
+            <Link to="/seller/buyers">
+              <Button size="sm" variant="outline" className="text-xs">View All</Button>
+            </Link>
+          </div>
+          <DashboardTabPills
+            variant="card"
+            tabs={marketTabs(saleBuyerCount, rentBuyerCount)}
+            activeKey="sale"
+            onChange={() => navigate("/seller/buyers")}
+          />
         </div>
 
         {/* My Listings */}

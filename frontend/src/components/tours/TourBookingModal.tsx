@@ -10,6 +10,7 @@ import { tourService } from "@/services/tour.service";
 import { toast } from "sonner";
 import { Property } from "@/types/models";
 import { cn } from "@/lib/utils";
+import { toLocalDateString } from "@/lib/tourDate";
 
 interface TourBookingModalProps {
   open: boolean;
@@ -22,14 +23,15 @@ const TourBookingModal = ({ open, onClose, property, onSuccess }: TourBookingMod
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
   const [selectedTime, setSelectedTime] = useState<{ startTime: string; endTime: string } | null>(null);
   const [message, setMessage] = useState("");
+  const [tourType, setTourType] = useState<"in-person" | "virtual" | "open-house">("in-person");
   const [step, setStep] = useState<"date" | "time" | "message">("date");
 
   // Fetch availability for selected date
   const { data: availabilityData } = useQuery({
-    queryKey: ["tour-availability", property._id, selectedDate?.toISOString().split("T")[0]],
+    queryKey: ["tour-availability", property._id, selectedDate ? toLocalDateString(selectedDate) : null],
     queryFn: () => {
       if (!selectedDate) return Promise.resolve({ success: true, data: [] });
-      return tourService.availability(property._id, selectedDate.toISOString().split("T")[0]);
+      return tourService.availability(property._id, toLocalDateString(selectedDate));
     },
     enabled: !!selectedDate && step === "time",
   });
@@ -43,10 +45,11 @@ const TourBookingModal = ({ open, onClose, property, onSuccess }: TourBookingMod
       }
       return tourService.create({
         propertyId: property._id,
-        date: selectedDate.toISOString().split("T")[0],
+        date: toLocalDateString(selectedDate),
         startTime: selectedTime.startTime,
         endTime: selectedTime.endTime,
         message: message.trim() || undefined,
+        tourType,
       });
     },
     onSuccess: () => {
@@ -73,6 +76,7 @@ const TourBookingModal = ({ open, onClose, property, onSuccess }: TourBookingMod
     setSelectedDate(null);
     setSelectedTime(null);
     setMessage("");
+    setTourType("in-person");
     setStep("date");
     onClose();
   };
@@ -174,11 +178,35 @@ const TourBookingModal = ({ open, onClose, property, onSuccess }: TourBookingMod
                   <MessageSquare className="w-5 h-5" />
                   <span className="text-sm">Add a message (optional)</span>
                 </div>
+                <div>
+                  <label className="text-sm font-medium text-foreground mb-2 block">Tour Type</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {([
+                      { value: "in-person", label: "In-Person" },
+                      { value: "virtual", label: "Virtual" },
+                      { value: "open-house", label: "Open House" },
+                    ] as const).map((option) => (
+                      <button
+                        key={option.value}
+                        type="button"
+                        onClick={() => setTourType(option.value)}
+                        className={cn(
+                          "px-3 py-2 rounded-lg border text-sm font-medium transition-colors",
+                          tourType === option.value
+                            ? "border-primary bg-primary/10 text-primary"
+                            : "border-border bg-background text-muted-foreground hover:border-primary/50"
+                        )}
+                      >
+                        {option.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <Textarea
                   placeholder="Any special requests or questions about the property..."
                   value={message}
                   onChange={(e) => setMessage(e.target.value)}
-                  className="min-h-[200px] resize-none"
+                  className="min-h-[160px] resize-none"
                 />
                 <div className="bg-primary/5 border border-primary/20 rounded-lg p-4">
                   <div className="text-sm font-medium text-foreground mb-2">Tour Summary</div>
@@ -194,6 +222,10 @@ const TourBookingModal = ({ open, onClose, property, onSuccess }: TourBookingMod
                     </div>
                     <div>
                       <span className="font-medium">Time:</span> {selectedTime?.startTime} - {selectedTime?.endTime}
+                    </div>
+                    <div>
+                      <span className="font-medium">Type:</span>{" "}
+                      {tourType === "in-person" ? "In-Person" : tourType === "virtual" ? "Virtual" : "Open House"}
                     </div>
                   </div>
                 </div>

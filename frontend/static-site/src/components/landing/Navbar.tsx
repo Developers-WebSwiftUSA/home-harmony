@@ -95,7 +95,7 @@ const Navbar = () => {
                   <button
                     onClick={() => {
                       logout();
-                      navigate("/");
+                      navigate("/", { replace: true });
                     }}
                     className="p-2 text-slate-700 hover:text-primary transition-colors"
                     title="Logout"

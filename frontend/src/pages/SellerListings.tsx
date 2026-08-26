@@ -1,21 +1,59 @@
 import { useState } from "react";
-import { Link } from "react-router-dom";
-import { Home, Plus, Eye, Edit, Trash2, MapPin, Bed, Bath, Maximize, Calendar, DollarSign, TrendingUp, CheckCircle, XCircle, Clock } from "lucide-react";
+import { Link, useNavigate } from "react-router-dom";
+import { Home, Plus, Eye, Edit, Trash2, MapPin, Bed, Bath, Maximize, Calendar, DollarSign, TrendingUp, Clock, UserCheck, Megaphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PetPolicyBadge } from "@/components/PetPolicyBadge";
 import { DashboardSidebar } from "./AdminDashboard";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import property1 from "@/assets/property-1.jpg";
 import { propertyService } from "@/services/property.service";
+import { AssignAgentControl } from "@/components/AssignAgentControl";
+import { PropertyViewershipControl } from "@/components/PropertyViewershipControl";
+import { getDisplayName } from "@/lib/userDisplay";
+import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { DashboardTabPills, listingTypeTabs } from "@/components/dashboard/DashboardTabPills";
+import { isRentalListing } from "@/features/rentals/lib/rentalFormat";
 
 const SellerListings = () => {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("All");
+  const [listingTypeTab, setListingTypeTab] = useState("all");
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
+
   const { data, isLoading } = useQuery({
     queryKey: ["seller-listings"],
     queryFn: () => propertyService.mine(),
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => propertyService.remove(id),
+    onSuccess: () => {
+      toast.success("Listing deleted");
+      queryClient.invalidateQueries({ queryKey: ["seller-listings"] });
+      queryClient.invalidateQueries({ queryKey: ["seller-dashboard-listings"] });
+      queryClient.invalidateQueries({ queryKey: ["properties"] });
+      queryClient.invalidateQueries({ queryKey: ["rentals"] });
+      setDeleteTarget(null);
+    },
+    onError: (error: Error) => {
+      toast.error(error.message || "Failed to delete listing");
+    },
+  });
+
   const allListings = (data?.data || []).map((item) => ({
     id: item._id,
+    raw: item,
     image: item.images?.[0]?.url || property1,
     title: item.title,
     location: [item.location?.address, item.location?.city, item.location?.state].filter(Boolean).join(", "),
@@ -29,8 +67,22 @@ const SellerListings = () => {
     listedDate: item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "-",
   }));
 
+  const saleCount = allListings.filter(
+    (l) => l.raw.listingType === "sale" || l.raw.listingType === "both"
+  ).length;
+  const rentCount = allListings.filter((l) => isRentalListing(l.raw)).length;
+
+  const typeFiltered =
+    listingTypeTab === "all"
+      ? allListings
+      : listingTypeTab === "rent"
+        ? allListings.filter((l) => isRentalListing(l.raw))
+        : allListings.filter((l) => l.raw.listingType === "sale" || l.raw.listingType === "both");
+
   const filteredListings =
-    activeTab === "All" ? allListings : allListings.filter((listing) => listing.status === activeTab);
+    activeTab === "All"
+      ? typeFiltered
+      : typeFiltered.filter((listing) => listing.status === activeTab);
 
   const totalValue = allListings.reduce((sum, listing) => {
     const value = Number(listing.price.replace(/[^0-9]/g, ""));
@@ -48,6 +100,11 @@ const SellerListings = () => {
             <p className="text-sm text-muted-foreground">Manage all your property listings</p>
           </div>
           <div className="flex items-center gap-3">
+            <Link to="/seller/promotions">
+              <Button variant="outline" className="gap-2">
+                <Megaphone className="w-4 h-4" /> Promotions
+              </Button>
+            </Link>
             <Link to="/seller/listings/new">
               <Button className="gap-2">
                 <Plus className="w-4 h-4" /> Add New Listing
@@ -56,9 +113,8 @@ const SellerListings = () => {
           </div>
         </div>
 
-        {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            {[
+          {[
             { icon: Home, label: "Total Listings", value: String(allListings.length), change: "Live data" },
             { icon: Eye, label: "Total Views", value: Number(allListings.reduce((sum, item) => sum + item.views, 0)).toLocaleString(), change: "Live data" },
             { icon: DollarSign, label: "Total Value", value: `$${totalValue.toLocaleString()}`, change: "Portfolio estimate" },
@@ -75,11 +131,19 @@ const SellerListings = () => {
           ))}
         </div>
 
-        {/* Filter Tabs */}
+        <DashboardTabPills
+          variant="card"
+          tabs={listingTypeTabs(allListings.length, saleCount, rentCount)}
+          activeKey={listingTypeTab}
+          onChange={setListingTypeTab}
+          className="mb-6"
+        />
+
         <div className="flex items-center gap-2 mb-6">
           {["All", "Active", "Pending Review", "Draft"].map((tab) => (
             <button
               key={tab}
+              type="button"
               onClick={() => setActiveTab(tab)}
               className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
                 tab === activeTab
@@ -92,13 +156,19 @@ const SellerListings = () => {
           ))}
         </div>
 
-        {/* Listings Grid */}
         <div className="space-y-4">
           {isLoading ? <p className="text-sm text-muted-foreground">Loading listings...</p> : null}
+          {!isLoading && filteredListings.length === 0 ? (
+            <div className="bg-card border border-border rounded-xl p-12 text-center">
+              <p className="text-muted-foreground mb-4">No listings in this category.</p>
+              <Link to="/seller/listings/new">
+                <Button>Add your first listing</Button>
+              </Link>
+            </div>
+          ) : null}
           {filteredListings.map((listing) => (
             <div key={listing.id} className="bg-card border border-border rounded-xl p-6 hover:shadow-md transition-shadow">
               <div className="flex flex-col md:flex-row gap-6">
-                {/* Image */}
                 <div className="relative w-full md:w-48 h-40 rounded-lg overflow-hidden flex-shrink-0">
                   <img src={listing.image} alt={listing.title} className="w-full h-full object-cover" />
                   <span className={`absolute top-2 left-2 text-xs font-semibold px-2 py-1 rounded-full ${
@@ -108,9 +178,13 @@ const SellerListings = () => {
                   }`}>
                     {listing.status}
                   </span>
+                  <span className={`absolute top-2 right-2 text-xs font-semibold px-2 py-1 rounded-full ${
+                    isRentalListing(listing.raw) ? "bg-blue-500 text-white" : "bg-emerald-600 text-white"
+                  }`}>
+                    {isRentalListing(listing.raw) ? "For Rent" : "For Sale"}
+                  </span>
                 </div>
 
-                {/* Details */}
                 <div className="flex-1">
                   <div className="flex items-start justify-between mb-3">
                     <div>
@@ -125,10 +199,14 @@ const SellerListings = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-4 text-xs text-muted-foreground mb-4">
+                  <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground mb-4">
                     <span className="flex items-center gap-1"><Bed className="w-3.5 h-3.5" /> {listing.beds} Beds</span>
                     <span className="flex items-center gap-1"><Bath className="w-3.5 h-3.5" /> {listing.baths} Baths</span>
                     <span className="flex items-center gap-1"><Maximize className="w-3.5 h-3.5" /> {listing.sqft} sqft</span>
+                    <PetPolicyBadge
+                      policy={listing.raw.rentalDetails?.petPolicy}
+                      petFee={listing.raw.rentalDetails?.petFee}
+                    />
                   </div>
 
                   <div className="flex items-center gap-4 text-sm mb-4">
@@ -142,21 +220,54 @@ const SellerListings = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <Link to={`/properties/${listing.id}`}>
+                  <div className="border-t border-border pt-4 mb-4">
+                    <div className="flex items-center gap-2 mb-2">
+                      <UserCheck className="w-4 h-4 text-muted-foreground" />
+                      <span className="text-sm font-medium text-foreground">Assigned Agent</span>
+                    </div>
+                    {listing.raw.agentId && typeof listing.raw.agentId === "object" && (
+                      <p className="text-xs text-muted-foreground mb-2">
+                        Current: {getDisplayName(listing.raw.agentId)} ({listing.raw.agentId.email})
+                      </p>
+                    )}
+                    <AssignAgentControl
+                      propertyId={listing.id}
+                      currentAgent={listing.raw.agentId}
+                      compact
+                    />
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Link to={listing.raw.listingType === "rent" || listing.raw.listingType === "both" ? `/rentals/${listing.id}` : `/properties/${listing.id}`}>
                       <Button size="sm" variant="outline" className="text-xs">
                         <Eye className="w-3.5 h-3.5 mr-1" /> View
                       </Button>
                     </Link>
-                    <Button size="sm" variant="outline" className="text-xs">
+                    <PropertyViewershipControl
+                      property={listing.raw}
+                      queryKeys={[["seller-listings"], ["seller-dashboard-listings"], ["properties"], ["rentals"]]}
+                    />
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-xs"
+                      type="button"
+                      onClick={() => navigate(`/seller/listings/${listing.id}/edit`)}
+                    >
                       <Edit className="w-3.5 h-3.5 mr-1" /> Edit
                     </Button>
                     {listing.status === "Pending Review" && (
-                      <Button size="sm" variant="outline" className="text-xs">
+                      <Button size="sm" variant="outline" className="text-xs" type="button" disabled>
                         <Clock className="w-3.5 h-3.5 mr-1" /> Review Status
                       </Button>
                     )}
-                    <Button size="sm" variant="outline" className="text-xs text-destructive hover:text-destructive">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="text-xs text-destructive hover:text-destructive"
+                      type="button"
+                      onClick={() => setDeleteTarget({ id: listing.id, title: listing.title })}
+                    >
                       <Trash2 className="w-3.5 h-3.5 mr-1" /> Delete
                     </Button>
                   </div>
@@ -166,6 +277,30 @@ const SellerListings = () => {
           ))}
         </div>
       </main>
+
+      <AlertDialog open={Boolean(deleteTarget)} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete listing?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently remove &quot;{deleteTarget?.title}&quot;. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleteMutation.isPending}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deleteMutation.isPending}
+              onClick={(event) => {
+                event.preventDefault();
+                if (deleteTarget) deleteMutation.mutate(deleteTarget.id);
+              }}
+            >
+              {deleteMutation.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

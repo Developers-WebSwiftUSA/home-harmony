@@ -43,6 +43,13 @@ const userSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  preferences: {
+    distanceUnit: {
+      type: String,
+      enum: ['miles', 'km'],
+      default: 'miles'
+    }
+  },
   // Role-specific profiles
   buyerProfile: {
     preferences: {
@@ -68,7 +75,7 @@ const userSchema = new mongoose.Schema({
   agentProfile: {
     licenseNumber: {
       type: String,
-      trim: true,
+      required: function() { return this.role === 'agent'; }
     },
     specialization: [String],
     yearsOfExperience: Number,
@@ -78,7 +85,7 @@ const userSchema = new mongoose.Schema({
     },
     verified: {
       type: Boolean,
-      default: false,
+      default: false
     },
     bio: String,
     languages: [String]
@@ -101,14 +108,6 @@ const userSchema = new mongoose.Schema({
         default: [0, 0]
       }
     }
-  },
-  /** Set when admin issues a one-time approval code; cleared after agent redeems. Not returned in API by default. */
-  pendingAgentApprovalHash: {
-    type: String,
-    select: false,
-  },
-  pendingAgentApprovalIssuedAt: {
-    type: Date,
   },
   emailVerified: {
     type: Boolean,

@@ -3,7 +3,9 @@ import User from '../models/User.model.js';
 import PasswordResetRequest from '../models/PasswordResetRequest.model.js';
 import { generateToken } from '../utils/generateToken.js';
 import { sendEmail } from '../utils/sendEmail.js';
-import { toAuthUserPayload } from '../utils/authUserResponse.js';
+import { SUPER_ADMIN_EMAIL } from '../config/seed.js';
+import { buildDefaultAvatar, formatAuthUser } from '../utils/formatAuthUser.js';
+import crypto from 'crypto';
 
 // @desc    Register user
 // @route   POST /api/auth/register
@@ -11,6 +13,14 @@ import { toAuthUserPayload } from '../utils/authUserResponse.js';
 export const register = asyncHandler(async (req, res) => {
   const { email, password, role, firstName, lastName, phone } = req.body;
   const normalizedRole = (role || "buyer").toLowerCase();
+  const normalizedEmail = (email || "").toLowerCase().trim();
+
+  if (normalizedEmail === SUPER_ADMIN_EMAIL) {
+    return res.status(403).json({
+      success: false,
+      message: 'This email is reserved and cannot be used for registration.',
+    });
+  }
 
   // Admin accounts cannot be self-registered.
   // Admin role should only be assigned by an existing admin.
@@ -22,7 +32,7 @@ export const register = asyncHandler(async (req, res) => {
   }
 
   // Check if user exists
-  const userExists = await User.findOne({ email });
+  const userExists = await User.findOne({ email: normalizedEmail });
   if (userExists) {
     return res.status(400).json({
       success: false,
@@ -30,21 +40,19 @@ export const register = asyncHandler(async (req, res) => {
     });
   }
 
-  const createPayload = {
-    email,
+  // Create user with profile picture from registration name
+  const user = await User.create({
+    email: normalizedEmail,
     password,
     role: normalizedRole,
     firstName,
     lastName,
     phone,
-  };
-  if (normalizedRole === 'agent') {
-    createPayload.agentProfile = { verified: false };
-  }
+    avatar: buildDefaultAvatar({ firstName, lastName, email: normalizedEmail }),
+  });
 
-  const user = await User.create(createPayload);
+  // Generate token
   const token = generateToken(user._id);
-  const safeUser = await User.findById(user._id).select('-password');
 
   // Send welcome email
   try {
@@ -61,9 +69,9 @@ export const register = asyncHandler(async (req, res) => {
   res.status(201).json({
     success: true,
     data: {
-      user: toAuthUserPayload(safeUser),
-      token,
-    },
+      user: formatAuthUser(user),
+      token
+    }
   });
 });
 
@@ -109,18 +117,19 @@ export const login = asyncHandler(async (req, res) => {
     });
   }
 
+  // Update last login
   user.lastLogin = new Date();
   await user.save();
 
+  // Generate token
   const token = generateToken(user._id);
-  const safeUser = await User.findById(user._id).select('-password');
 
   res.status(200).json({
     success: true,
     data: {
-      user: toAuthUserPayload(safeUser),
-      token,
-    },
+      user: formatAuthUser(user),
+      token
+    }
   });
 });
 
@@ -132,7 +141,7 @@ export const getMe = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     success: true,
-    data: user
+    data: formatAuthUser(user)
   });
 });
 
@@ -163,9 +172,9 @@ export const updatePassword = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
     data: {
-      user: toAuthUserPayload(updatedUser),
-      token,
-    },
+      user: formatAuthUser(updatedUser),
+      token
+    }
   });
 });
 

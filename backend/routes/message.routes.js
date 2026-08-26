@@ -2,19 +2,20 @@ import express from 'express';
 import {
   getConversations,
   getOrCreateConversation,
+  getOrCreatePropertyConversation,
   getMessages,
   sendMessage,
   markAsRead
 } from '../controllers/message.controller.js';
-import { protect, blockUnverifiedAgent } from '../middleware/auth.middleware.js';
+import { protect } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
 // All routes require authentication
 router.use(protect);
-router.use(blockUnverifiedAgent);
 
 router.get('/conversations', getConversations);
+router.get('/property/:propertyId/conversation', getOrCreatePropertyConversation);
 router.get('/conversations/:userId', getOrCreateConversation);
 router.get('/conversations/:conversationId/messages', getMessages);
 router.post('/', sendMessage);

@@ -4,7 +4,7 @@ import Property from '../models/Property.model.js';
 import Notification from '../models/Notification.model.js';
 import { sendEmail } from '../utils/sendEmail.js';
 import { sendSMS } from '../utils/sendSMS.js';
-import { incrementAgentRatingFromTourFeedback } from '../utils/agentRating.js';
+import { refreshAgentRating, refreshPropertyRating } from '../utils/ratings.js';
 
 // @desc    Get all tours
 // @route   GET /api/tours
@@ -157,6 +157,18 @@ export const createTour = asyncHandler(async (req, res) => {
     relatedModel: 'Tour'
   });
 
+  // Notify assigned agent
+  if (property.agentId) {
+    await Notification.create({
+      userId: property.agentId,
+      type: 'tour_request',
+      title: 'New Tour Request',
+      message: `${req.user.firstName || req.user.email} requested a tour for "${property.title}"`,
+      relatedId: tour._id,
+      relatedModel: 'Tour'
+    });
+  }
+
   // Send email to seller
   try {
     const seller = await Property.findById(propertyId).populate('sellerId');
@@ -168,6 +180,14 @@ export const createTour = asyncHandler(async (req, res) => {
     });
   } catch (error) {
     console.error('Email error:', error);
+  }
+
+  const io = req.app.get('io');
+  if (io) {
+    io.to(`user-${property.sellerId}`).emit('tour-updated', populatedTour);
+    if (property.agentId) {
+      io.to(`user-${property.agentId}`).emit('tour-updated', populatedTour);
+    }
   }
 
   res.status(201).json({
@@ -237,16 +257,24 @@ export const updateTourStatus = asyncHandler(async (req, res) => {
   }
 
   if (status === 'cancelled') {
-    await Notification.create({
-      userId: status === 'cancelled' && req.user.id === tour.buyerId._id.toString()
-        ? tour.sellerId._id
-        : tour.buyerId._id,
-      type: 'tour_cancelled',
-      title: 'Tour Cancelled',
-      message: `Tour for "${tour.propertyId.title}" has been cancelled`,
-      relatedId: tour._id,
-      relatedModel: 'Tour'
-    });
+    const cancelledByBuyer = req.user.id === tour.buyerId._id.toString();
+    const notifyIds = cancelledByBuyer
+      ? [tour.sellerId._id]
+      : [tour.buyerId._id];
+    if (tour.agentId) {
+      notifyIds.push(tour.agentId._id || tour.agentId);
+    }
+
+    for (const userId of notifyIds) {
+      await Notification.create({
+        userId,
+        type: 'tour_cancelled',
+        title: 'Tour Cancelled',
+        message: `Tour for "${tour.propertyId.title}" has been cancelled`,
+        relatedId: tour._id,
+        relatedModel: 'Tour'
+      });
+    }
   }
 
   res.status(200).json({
@@ -419,6 +447,22 @@ export const rescheduleTour = asyncHandler(async (req, res) => {
     return res.status(400).json({
       success: false,
       message: 'Only confirmed or pending tours can be rescheduled'
+    });
+  }
+
+  // Check for conflicts at the new slot (exclude this tour)
+  const conflictingTour = await Tour.findOne({
+    _id: { $ne: tour._id },
+    propertyId: tour.propertyId._id || tour.propertyId,
+    date: new Date(newDate),
+    startTime: newStartTime,
+    status: { $in: ['pending', 'confirmed'] }
+  });
+
+  if (conflictingTour) {
+    return res.status(400).json({
+      success: false,
+      message: 'This time slot is already booked'
     });
   }
 
@@ -687,7 +731,7 @@ export const markComplete = asyncHandler(async (req, res) => {
 // @route   GET /api/tours/availability
 // @access  Public
 export const getAvailability = asyncHandler(async (req, res) => {
-  const { propertyId, date } = req.query;
+  const { propertyId, date, excludeTourId } = req.query;
 
   if (!propertyId || !date) {
     return res.status(400).json({
@@ -696,12 +740,17 @@ export const getAvailability = asyncHandler(async (req, res) => {
     });
   }
 
-  // Get all tours for this property on this date
-  const tours = await Tour.find({
+  const tourQuery = {
     propertyId,
     date: new Date(date),
     status: { $in: ['pending', 'confirmed'] }
-  }).select('startTime endTime');
+  };
+  if (excludeTourId) {
+    tourQuery._id = { $ne: excludeTourId };
+  }
+
+  // Get all tours for this property on this date
+  const tours = await Tour.find(tourQuery).select('startTime endTime');
 
   // Define available time slots (9 AM to 6 PM, hourly)
   const allSlots = [];
@@ -729,9 +778,62 @@ export const getAvailability = asyncHandler(async (req, res) => {
   });
 });
 
+// @desc    Get tours with submitted feedback (reviews)
+// @route   GET /api/tours/reviews
+// @access  Private
+export const getTourReviews = asyncHandler(async (req, res) => {
+  const { userId, propertyId, page = 1, limit = 200 } = req.query;
+
+  const query = {
+    status: 'completed',
+    'feedback.propertyRating': { $exists: true, $ne: null }
+  };
+
+  if (propertyId) {
+    query.propertyId = propertyId;
+  }
+
+  if (req.user.role === 'buyer') {
+    query.buyerId = req.user.id;
+  } else if (req.user.role === 'seller') {
+    query.sellerId = req.user.id;
+  } else if (req.user.role === 'agent') {
+    query.agentId = req.user.id;
+  } else if (req.user.role === 'admin' && userId) {
+    query.$or = [
+      { buyerId: userId },
+      { sellerId: userId },
+      { agentId: userId }
+    ];
+  }
+
+  const parsedLimit = Math.min(parseInt(limit, 10) || 200, 500);
+  const parsedPage = parseInt(page, 10) || 1;
+
+  const tours = await Tour.find(query)
+    .populate('propertyId', 'title location images price')
+    .populate('buyerId', 'firstName lastName email phone')
+    .populate('sellerId', 'firstName lastName email phone')
+    .populate('agentId', 'firstName lastName email phone')
+    .sort({ 'feedback.submittedAt': -1, updatedAt: -1 })
+    .limit(parsedLimit)
+    .skip((parsedPage - 1) * parsedLimit);
+
+  const total = await Tour.countDocuments(query);
+
+  res.status(200).json({
+    success: true,
+    count: tours.length,
+    total,
+    page: parsedPage,
+    pages: Math.ceil(total / parsedLimit),
+    data: tours
+  });
+});
+
 // @desc    Submit tour feedback
 // @route   PUT /api/tours/:id/feedback
-// @access  Private (buyer or seller on the tour)
+// @access  Private/Buyer
 export const submitFeedback = asyncHandler(async (req, res) => {
   const { propertyRating, agentRating, propertyComment, agentComment, overallExperience, wouldRecommend } = req.body;
 
@@ -748,12 +850,11 @@ export const submitFeedback = asyncHandler(async (req, res) => {
     });
   }
 
-  const isBuyer = tour.buyerId._id.toString() === req.user.id;
-  const isSeller = tour.sellerId._id.toString() === req.user.id;
-  if (!isBuyer && !isSeller) {
+  // Authorization: only buyer
+  if (tour.buyerId._id.toString() !== req.user.id) {
     return res.status(403).json({
       success: false,
-      message: 'Only the buyer or seller on this tour can submit feedback'
+      message: 'Only the buyer can submit feedback'
     });
   }
 
@@ -764,13 +865,6 @@ export const submitFeedback = asyncHandler(async (req, res) => {
     });
   }
 
-  if (tour.feedback?.submittedAt) {
-    return res.status(400).json({
-      success: false,
-      message: 'Feedback has already been submitted for this tour'
-    });
-  }
-
   if (!propertyRating || propertyRating < 1 || propertyRating > 5) {
     return res.status(400).json({
       success: false,
@@ -778,12 +872,9 @@ export const submitFeedback = asyncHandler(async (req, res) => {
     });
   }
 
-  const numericAgentRating =
-    agentRating != null && agentRating >= 1 && agentRating <= 5 ? agentRating : undefined;
-
   tour.feedback = {
     propertyRating,
-    agentRating: numericAgentRating,
+    agentRating: agentRating || undefined,
     propertyComment: propertyComment || undefined,
     agentComment: agentComment || undefined,
     overallExperience: overallExperience || undefined,
@@ -793,8 +884,9 @@ export const submitFeedback = asyncHandler(async (req, res) => {
 
   await tour.save();
 
-  if (numericAgentRating != null && tour.agentId) {
-    await incrementAgentRatingFromTourFeedback(tour.agentId, numericAgentRating);
+  await refreshPropertyRating(tour.propertyId._id || tour.propertyId);
+  if (tour.agentId) {
+    await refreshAgentRating(tour.agentId._id || tour.agentId);
   }
 
   // Create notification for seller/agent about new review

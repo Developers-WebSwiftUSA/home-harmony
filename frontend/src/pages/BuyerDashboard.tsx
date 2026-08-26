@@ -5,9 +5,16 @@ import { DashboardSidebar } from "./AdminDashboard";
 import { useQuery } from "@tanstack/react-query";
 import { favoriteService } from "@/services/favorite.service";
 import { tourService } from "@/services/tour.service";
+import { useAuth } from "@/context/AuthContext";
+import { UserAvatar } from "@/components/UserAvatar";
+import { getDisplayName } from "@/lib/userDisplay";
+import { getPropertyDetailPath } from "@/lib/propertyRoutes";
+import { isRentalListing } from "@/features/rentals/lib/rentalFormat";
+import { getSavedRentalSearches } from "@/features/rentals/lib/savedSearches";
 import property1 from "@/assets/property-1.jpg";
 
 const BuyerDashboard = () => {
+  const { user } = useAuth();
   const { data: favoritesData } = useQuery({
     queryKey: ["buyer-favorites"],
     queryFn: () => favoriteService.list(),
@@ -19,14 +26,19 @@ const BuyerDashboard = () => {
 
   const favorites = (favoritesData?.data || []).map((fav) => ({
     id: fav.propertyId?._id,
+    listingType: fav.propertyId?.listingType,
     image: fav.propertyId?.images?.[0]?.url || property1,
     title: fav.propertyId?.title || "Property",
     location: [fav.propertyId?.location?.city, fav.propertyId?.location?.state].filter(Boolean).join(", "),
-    price: `$${Number(fav.propertyId?.price || 0).toLocaleString()}`,
+    price: fav.propertyId && isRentalListing(fav.propertyId)
+      ? `$${Number(fav.propertyId.price || 0).toLocaleString()}/mo`
+      : `$${Number(fav.propertyId?.price || 0).toLocaleString()}`,
     beds: fav.propertyId?.bedrooms || 0,
     baths: fav.propertyId?.bathrooms || 0,
     sqft: Number(fav.propertyId?.squareFeet || 0).toLocaleString(),
   }));
+
+  const savedSearchCount = getSavedRentalSearches().length;
 
   const upcomingTours = (toursData?.data || []).slice(0, 3).map((tour) => ({
     property: tour.propertyId?.title || "Property",
@@ -45,28 +57,28 @@ const BuyerDashboard = () => {
 
       <main className="flex-1 ml-64 p-8">
         <div className="flex items-center justify-between mb-8">
-          <div>
-            <h1 className="text-2xl font-heading font-bold text-foreground">Buyer Dashboard</h1>
-            <p className="text-sm text-muted-foreground">Find your dream home</p>
-          </div>
-          <div className="flex items-center gap-3">
-            <button className="relative p-2 rounded-lg hover:bg-card transition-colors">
-              <Bell className="w-5 h-5 text-muted-foreground" />
-              <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full" />
-            </button>
-            <div className="w-9 h-9 rounded-full bg-primary flex items-center justify-center">
-              <span className="text-primary-foreground font-bold text-sm">B</span>
+          <div className="flex items-center gap-4">
+            <UserAvatar user={user} size="lg" />
+            <div>
+              <h1 className="text-2xl font-heading font-bold text-foreground">Buyer Dashboard</h1>
+              <p className="text-sm text-muted-foreground">
+                Welcome back, {getDisplayName(user)}
+              </p>
             </div>
           </div>
+          <button className="relative p-2 rounded-lg hover:bg-card transition-colors">
+            <Bell className="w-5 h-5 text-muted-foreground" />
+            <span className="absolute top-1 right-1 w-2 h-2 bg-primary rounded-full" />
+          </button>
         </div>
 
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
             {[
             { icon: Heart, label: "Favorites", value: String(favorites.length) },
-            { icon: Calendar, label: "Tours Scheduled", value: String(upcomingTours.length) },
-            { icon: Eye, label: "Properties Viewed", value: "48" },
-            { icon: Search, label: "Saved Searches", value: "5" },
+            { icon: Calendar, label: "Tours Scheduled", value: String((toursData?.data || []).length) },
+            { icon: Eye, label: "Active Tours", value: String(upcomingTours.length) },
+            { icon: Search, label: "Saved Searches", value: String(savedSearchCount) },
           ].map((s) => (
             <div key={s.label} className="bg-card border border-border rounded-xl p-5">
               <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-3">
@@ -104,7 +116,11 @@ const BuyerDashboard = () => {
           </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {favorites.map((prop) => (
-              <Link to={`/properties/${prop.id}`} key={prop.id} className="rounded-lg overflow-hidden border border-border hover:shadow-md transition-shadow">
+              <Link
+                to={getPropertyDetailPath({ _id: prop.id!, listingType: prop.listingType || "sale" })}
+                key={prop.id}
+                className="rounded-lg overflow-hidden border border-border hover:shadow-md transition-shadow"
+              >
                 <img src={prop.image} alt={prop.title} className="w-full h-36 object-cover" />
                 <div className="p-3">
                   <h3 className="font-heading font-bold text-foreground text-sm mb-1">{prop.title}</h3>

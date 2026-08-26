@@ -1,7 +1,41 @@
 import asyncHandler from '../middleware/asyncHandler.js';
+import mongoose from 'mongoose';
 import Message from '../models/Message.model.js';
 import Conversation from '../models/Conversation.model.js';
 import Notification from '../models/Notification.model.js';
+import Property from '../models/Property.model.js';
+import User from '../models/User.model.js';
+import { buildDirectKey } from '../utils/conversationKey.js';
+
+const toObjectId = (value) => {
+  if (!value) return null;
+  try {
+    return new mongoose.Types.ObjectId(String(value));
+  } catch {
+    return null;
+  }
+};
+
+const toParticipantId = (participant) => String(participant?._id || participant);
+
+const isConversationParticipant = (conversation, userId) => {
+  const uid = String(userId || '');
+  if (!conversation?.participants?.length || !uid) return false;
+  return conversation.participants.some((participant) => toParticipantId(participant) === uid);
+};
+
+
+const populateConversation = (query) =>
+  query
+    .populate('participants', 'firstName lastName email avatar role')
+    .populate('propertyId', 'title images');
+
+const findConversationBetweenUsers = async (participantIds, { propertyId = null } = {}) => {
+  const directKey = buildDirectKey(participantIds, propertyId);
+  if (!directKey) return null;
+
+  return populateConversation(Conversation.findOne({ directKey }));
+};
 
 // @desc    Get all conversations
 // @route   GET /api/messages/conversations
@@ -30,30 +64,155 @@ export const getOrCreateConversation = asyncHandler(async (req, res) => {
   const { userId } = req.params;
   const { propertyId } = req.query;
 
-  // Find existing conversation
-  let conversation = await Conversation.findOne({
-    participants: { $all: [req.user.id, userId] },
-    ...(propertyId && { propertyId })
-  })
-    .populate('participants', 'firstName lastName email avatar role')
-    .populate('propertyId', 'title images');
+  const currentUserId = toObjectId(req.user._id || req.user.id);
+  const otherUserId = toObjectId(userId);
+  const propertyObjectId = propertyId ? toObjectId(propertyId) : null;
 
-  // Create if doesn't exist
-  if (!conversation) {
-    conversation = await Conversation.create({
-      participants: [req.user.id, userId],
-      ...(propertyId && { propertyId }),
-      unreadCount: new Map()
+  if (!currentUserId || !otherUserId) {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid user id'
     });
-    await conversation.populate('participants', 'firstName lastName email avatar role');
-    if (propertyId) {
-      await conversation.populate('propertyId', 'title images');
+  }
+
+  if (currentUserId.equals(otherUserId)) {
+    return res.status(400).json({
+      success: false,
+      message: 'You cannot message yourself'
+    });
+  }
+
+  const participantIds = [currentUserId, otherUserId];
+
+  let conversation = await findConversationBetweenUsers(participantIds, {
+    propertyId: propertyObjectId
+  });
+
+  if (!conversation) {
+    const directKey = buildDirectKey(participantIds, propertyObjectId);
+    try {
+      conversation = await Conversation.create({
+        participants: participantIds,
+        directKey,
+        ...(propertyObjectId && { propertyId: propertyObjectId }),
+        unreadCount: new Map()
+      });
+      conversation = await populateConversation(Conversation.findById(conversation._id));
+    } catch (err) {
+      if (err.code === 11000) {
+        conversation = await findConversationBetweenUsers(participantIds, {
+          propertyId: propertyObjectId
+        });
+      } else {
+        throw err;
+      }
     }
+  }
+
+  if (!conversation) {
+    return res.status(500).json({
+      success: false,
+      message: 'Could not open conversation'
+    });
   }
 
   res.status(200).json({
     success: true,
     data: conversation
+  });
+});
+
+// @desc    Get or create conversation for a property (routes to assigned agent, else seller)
+// @route   GET /api/messages/property/:propertyId/conversation
+// @access  Private
+export const getOrCreatePropertyConversation = asyncHandler(async (req, res) => {
+  const { propertyId } = req.params;
+
+  const property = await Property.findById(propertyId);
+  if (!property) {
+    return res.status(404).json({
+      success: false,
+      message: 'Property not found'
+    });
+  }
+
+  const contactUserId = property.agentId || property.sellerId;
+  if (!contactUserId) {
+    return res.status(400).json({
+      success: false,
+      message: 'No contact available for this property'
+    });
+  }
+
+  const currentUserId = toObjectId(req.user._id || req.user.id);
+  const contactObjectId = toObjectId(contactUserId);
+  const propertyObjectId = toObjectId(propertyId);
+
+  if (!currentUserId || !contactObjectId || !propertyObjectId) {
+    return res.status(400).json({
+      success: false,
+      message: 'Invalid conversation reference'
+    });
+  }
+
+  if (contactObjectId.equals(currentUserId)) {
+    return res.status(400).json({
+      success: false,
+      message: 'You cannot message yourself about this property'
+    });
+  }
+
+  const participantIds = [currentUserId, contactObjectId];
+
+  let conversation = await findConversationBetweenUsers(participantIds, {
+    propertyId: propertyObjectId
+  });
+
+  const isNewConversation = !conversation;
+
+  if (!conversation) {
+    const directKey = buildDirectKey(participantIds, propertyObjectId);
+    try {
+      conversation = await Conversation.create({
+        participants: participantIds,
+        directKey,
+        propertyId: propertyObjectId,
+        unreadCount: new Map()
+      });
+      conversation = await populateConversation(Conversation.findById(conversation._id));
+    } catch (err) {
+      if (err.code === 11000) {
+        conversation = await findConversationBetweenUsers(participantIds, {
+          propertyId: propertyObjectId
+        });
+      } else {
+        throw err;
+      }
+    }
+
+    if (isNewConversation && conversation) {
+      property.inquiries = (property.inquiries || 0) + 1;
+      await property.save();
+    }
+  }
+
+  if (!conversation) {
+    return res.status(500).json({
+      success: false,
+      message: 'Could not open conversation'
+    });
+  }
+
+  const contactUser = await User.findById(contactUserId).select(
+    'firstName lastName email avatar role phone'
+  );
+
+  res.status(200).json({
+    success: true,
+    data: conversation,
+    contactUser,
+    contactedRole: property.agentId ? 'agent' : 'seller',
+    isNewConversation
   });
 });
 
@@ -66,7 +225,7 @@ export const getMessages = asyncHandler(async (req, res) => {
 
   // Verify user is part of conversation
   const conversation = await Conversation.findById(conversationId);
-  if (!conversation || !conversation.participants.includes(req.user.id)) {
+  if (!conversation || !isConversationParticipant(conversation, req.user.id)) {
     return res.status(403).json({
       success: false,
       message: 'Not authorized to view this conversation'
@@ -116,23 +275,37 @@ export const sendMessage = asyncHandler(async (req, res) => {
 
   if (conversationId) {
     conversation = await Conversation.findById(conversationId);
-    if (!conversation || !conversation.participants.includes(req.user.id)) {
+    if (!conversation || !isConversationParticipant(conversation, req.user.id)) {
       return res.status(403).json({
         success: false,
         message: 'Not authorized'
       });
     }
   } else if (receiverId) {
-    // Find or create conversation
-    conversation = await Conversation.findOne({
-      participants: { $all: [req.user.id, receiverId] }
-    });
+    const currentUserId = toObjectId(req.user._id || req.user.id);
+    const otherUserId = toObjectId(receiverId);
+    const participantIds =
+      currentUserId && otherUserId ? [currentUserId, otherUserId] : null;
 
-    if (!conversation) {
-      conversation = await Conversation.create({
-        participants: [req.user.id, receiverId],
-        unreadCount: new Map()
-      });
+    conversation = participantIds
+      ? await findConversationBetweenUsers(participantIds)
+      : null;
+
+    if (!conversation && participantIds) {
+      const directKey = buildDirectKey(participantIds);
+      try {
+        conversation = await Conversation.create({
+          participants: participantIds,
+          directKey,
+          unreadCount: new Map()
+        });
+      } catch (err) {
+        if (err.code === 11000) {
+          conversation = await findConversationBetweenUsers(participantIds);
+        } else {
+          throw err;
+        }
+      }
     }
   } else {
     return res.status(400).json({

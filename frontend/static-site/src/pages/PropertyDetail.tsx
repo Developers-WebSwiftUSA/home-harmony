@@ -7,6 +7,7 @@ import Footer from "@/components/landing/Footer";
 import property1 from "@/assets/property-1.jpg";
 import property2 from "@/assets/property-2.jpg";
 import property3 from "@/assets/property-3.jpg";
+import agent1 from "@/assets/agent-1.jpg";
 import { propertyService } from "@/services/property.service";
 import { messageService } from "@/services/message.service";
 import { useAuth } from "@/context/AuthContext";

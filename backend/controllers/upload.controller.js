@@ -11,8 +11,7 @@ export const uploadSingleImage = asyncHandler(async (req, res) => {
     });
   }
 
-  const baseUrl = `${req.protocol}://${req.get("host")}`;
-  const imageUrl = `${baseUrl}/uploads/${req.file.filename}`;
+  const imageUrl = `/uploads/${req.file.filename}`;
 
   res.status(201).json({
     success: true,

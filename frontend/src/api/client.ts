@@ -1,4 +1,5 @@
 import { ApiError } from "@/types/api";
+import { getAuthToken } from "@/lib/auth-token";
 import { getApiBaseUrl } from "@/lib/app-env";
 
 const API_BASE_URL = getApiBaseUrl();
@@ -6,8 +7,6 @@ const API_BASE_URL = getApiBaseUrl();
 type RequestOptions = RequestInit & {
   auth?: boolean;
 };
-
-const getToken = () => localStorage.getItem("auth_token");
 
 export async function apiRequest<T>(path: string, options: RequestOptions = {}): Promise<T> {
   const { auth = false, headers, ...rest } = options;
@@ -25,13 +24,14 @@ export async function apiRequest<T>(path: string, options: RequestOptions = {}):
   }
 
   if (auth) {
-    const token = getToken();
-    if (token) {
-      requestHeaders = {
-        ...requestHeaders,
-        Authorization: `Bearer ${token}`,
-      };
+    const token = getAuthToken();
+    if (!token) {
+      throw new ApiError("Not authorized to access this route", 401);
     }
+    requestHeaders = {
+      ...requestHeaders,
+      Authorization: `Bearer ${token}`,
+    };
   }
 
   const response = await fetch(`${API_BASE_URL}${path}`, {

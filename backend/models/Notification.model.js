@@ -12,13 +12,24 @@ const notificationSchema = new mongoose.Schema({
       'tour_request',
       'tour_confirmed',
       'tour_cancelled',
+      'tour_declined',
+      'tour_reschedule_requested',
+      'tour_reschedule_approved',
+      'tour_reschedule_rejected',
+      'tour_completed',
+      'tour_feedback_submitted',
       'property_approved',
       'property_rejected',
       'new_message',
       'new_inquiry',
       'favorite_price_drop',
       'agent_verified',
-      'system_announcement'
+      'property_assigned',
+      'rental_application',
+      'system_announcement',
+      'ad_campaign_request',
+      'ad_campaign_approved',
+      'ad_campaign_rejected'
     ],
     required: true
   },
@@ -36,7 +47,7 @@ const notificationSchema = new mongoose.Schema({
   },
   relatedModel: {
     type: String,
-    enum: ['Property', 'Tour', 'Message', 'User'],
+    enum: ['Property', 'Tour', 'Message', 'User', 'RentalApplication', 'AdCampaign'],
     default: null
   },
   isRead: {

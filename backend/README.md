@@ -63,10 +63,9 @@ backend/
 │   ├── sendEmail.js
 │   └── sendSMS.js
 ├── server.js        # Entry point
-└── package.json
+├── package.json
+└── .env.example     # Environment variables template
 ```
-
-Environment variables live in the **repository root** (`.env`, template `../.env.example`). The server loads `../.env` only—not `backend/.env`.
 
 ## Installation
 
@@ -75,13 +74,12 @@ Environment variables live in the **repository root** (`.env`, template `../.env
 npm install
 ```
 
-2. From the **repository root**, create `.env` (see `/.env.example`):
+2. Create `.env` file from `.env.example`:
 ```bash
-cd ..
 cp .env.example .env
 ```
 
-3. Edit the repo root `.env` with your configuration:
+3. Update `.env` with your configuration:
 - MongoDB URI
 - JWT Secret
 - Email/SMS service credentials (optional for development)
@@ -93,22 +91,12 @@ mongod
 
 5. Run the server:
 ```bash
-# Development (API only; use Vite in /frontend for UI)
+# Development
 npm run dev
 
-# Production (API only)
+# Production
 npm start
 ```
-
-### Serve API + built frontend together
-
-From the **repository root**, build the SPA then start Node (serves `frontend/dist` on the same port as the API):
-
-```bash
-npm run serve
-```
-
-Open `http://localhost:5000` (or your `PORT`). For this mode, set in repo root `.env`: `FRONTEND_URL=http://localhost:5000` and `VITE_API_URL=/api`, then rebuild (`npm run build`).
 
 ## API Endpoints
 
@@ -183,7 +171,7 @@ Authorization: Bearer <token>
 
 ## Environment Variables
 
-See **`/.env.example`** at the monorepo root for all variables (MongoDB, JWT, `VITE_API_URL`, etc.).
+See `.env.example` for all required environment variables.
 
 ## Database Models
 

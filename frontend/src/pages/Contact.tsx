@@ -9,7 +9,7 @@ const Contact = () => {
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      <section className="relative pt-32 pb-16">
+      <section className="relative py-16 md:py-20">
         <div className="absolute inset-0">
           <img src={heroBg} alt="" className="w-full h-full object-cover" />
           <div className="absolute inset-0 bg-secondary/85" />

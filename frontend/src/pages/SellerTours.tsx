@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
 import { Calendar, Search, Filter } from "lucide-react";
 import { DashboardSidebar } from "./AdminDashboard";
@@ -11,12 +11,14 @@ import { useAuth } from "@/context/AuthContext";
 const SellerTours = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const queryClient = useQueryClient();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const role = user?.role === "agent" ? "agent" : "seller";
+  const sidebarActive = role === "agent" ? "Tours" : "Tour Requests";
+  const toursQueryKey = role === "agent" ? "agent-tours" : "seller-tours";
 
   const { data, isLoading } = useQuery({
-    queryKey: ["seller-tours", statusFilter],
+    queryKey: [toursQueryKey, statusFilter],
     queryFn: () => tourService.list({ status: statusFilter !== "all" ? statusFilter : undefined }),
   });
 
@@ -32,7 +34,7 @@ const SellerTours = () => {
   });
 
   const handleViewTour = (tourId: string) => {
-    navigate(`/seller/tours/${tourId}`);
+    navigate(`/${role}/tours/${tourId}`);
   };
 
   const pendingTours = filteredTours.filter((tour) => tour.status === "pending");
@@ -55,11 +57,17 @@ const SellerTours = () => {
 
   return (
     <div className="min-h-screen bg-muted flex">
-      <DashboardSidebar active="Tours" role="seller" />
+      <DashboardSidebar active={sidebarActive} role={role} />
       <main className="flex-1 ml-64 p-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-heading font-bold text-foreground mb-2">Tour Requests</h1>
-          <p className="text-sm text-muted-foreground">Manage and respond to tour requests for your properties</p>
+          <h1 className="text-3xl font-heading font-bold text-foreground mb-2">
+            {role === "agent" ? "Assigned Tours" : "Tour Requests"}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {role === "agent"
+              ? "Manage tour requests for properties assigned to you"
+              : "Manage and respond to tour requests for your properties"}
+          </p>
         </div>
 
         {/* Stats */}

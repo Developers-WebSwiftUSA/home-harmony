@@ -5,8 +5,12 @@ import { DashboardSidebar } from "./AdminDashboard";
 import { propertyService } from "@/services/property.service";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { ArrowLeft, Save, CheckCircle, XCircle, Clock, Trash2, Eye } from "lucide-react";
+import { ArrowLeft, Save, CheckCircle, XCircle, Clock, Trash2, Eye, UserCheck } from "lucide-react";
 import property1 from "@/assets/property-1.jpg";
+import { AssignAgentControl } from "@/components/AssignAgentControl";
+import { PropertyImage } from "@/components/PropertyImage";
+import { getAllPropertyImageUrls } from "@/lib/propertyImage";
+import { getPropertyDetailPath } from "@/lib/propertyRoutes";
 
 const AdminPropertyReview = () => {
   const { id } = useParams<{ id: string }>();
@@ -153,6 +157,8 @@ const AdminPropertyReview = () => {
     );
   }
 
+  const propertyImages = property ? getAllPropertyImageUrls(property.images) : [];
+
   if (!property) {
     return (
       <div className="min-h-screen bg-muted flex">
@@ -188,14 +194,39 @@ const AdminPropertyReview = () => {
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
           {/* Main Form */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Property Image */}
+            {/* Property Images */}
             <div className="bg-card border border-border rounded-xl p-6">
-              <h2 className="font-heading font-bold text-foreground mb-4">Property Image</h2>
-              <img
-                src={property.images?.[0]?.url || property1}
-                alt={property.title}
-                className="w-full h-64 object-cover rounded-lg"
-              />
+              <h2 className="font-heading font-bold text-foreground mb-4">
+                Property Images {propertyImages.length > 0 ? `(${propertyImages.length})` : ""}
+              </h2>
+              {propertyImages.length > 0 ? (
+                <div
+                  className={
+                    propertyImages.length === 1
+                      ? "grid grid-cols-1"
+                      : "grid grid-cols-1 sm:grid-cols-2 gap-4"
+                  }
+                >
+                  {propertyImages.map((imageUrl, index) => (
+                    <PropertyImage
+                      key={`${imageUrl}-${index}`}
+                      src={imageUrl}
+                      alt={`${property.title} ${index + 1}`}
+                      fallback={property1}
+                      className={`w-full object-cover rounded-lg ${
+                        index === 0 && propertyImages.length > 1 ? "sm:row-span-2 h-64 sm:h-full min-h-[16rem]" : "h-48 sm:h-56"
+                      }`}
+                    />
+                  ))}
+                </div>
+              ) : (
+                <PropertyImage
+                  src={null}
+                  alt={property.title}
+                  fallback={property1}
+                  className="w-full h-64 object-cover rounded-lg"
+                />
+              )}
             </div>
 
             {/* Edit Form */}
@@ -356,7 +387,7 @@ const AdminPropertyReview = () => {
                 <Button type="submit" disabled={updateMutation.isPending} className="gap-2">
                   <Save className="w-4 h-4" /> Save Changes
                 </Button>
-                <Link to={`/properties/${id}`}>
+                <Link to={property ? getPropertyDetailPath(property) : "#"}>
                   <Button variant="outline" className="gap-2">
                     <Eye className="w-4 h-4" /> View Public Page
                   </Button>
@@ -413,6 +444,14 @@ const AdminPropertyReview = () => {
               </div>
             </div>
 
+            {/* Assign Agent */}
+            <div className="bg-card border border-border rounded-xl p-6">
+              <h2 className="font-heading font-bold text-foreground mb-4 flex items-center gap-2">
+                <UserCheck className="w-4 h-4" /> Assign Agent
+              </h2>
+              <AssignAgentControl propertyId={property._id} currentAgent={property.agentId} />
+            </div>
+
             {/* Property Info */}
             <div className="bg-card border border-border rounded-xl p-6">
               <h2 className="font-heading font-bold text-foreground mb-4">Property Information</h2>
@@ -440,6 +479,19 @@ const AdminPropertyReview = () => {
                       {property.sellerId.firstName} {property.sellerId.lastName}
                     </p>
                     <p className="text-xs text-muted-foreground">{property.sellerId.email}</p>
+                  </div>
+                )}
+                {property.agentId && (
+                  <div>
+                    <span className="text-muted-foreground">Assigned Agent:</span>
+                    <p className="text-foreground">
+                      {typeof property.agentId === "object"
+                        ? `${property.agentId.firstName || ""} ${property.agentId.lastName || ""}`.trim()
+                        : "—"}
+                    </p>
+                    {typeof property.agentId === "object" && property.agentId.email && (
+                      <p className="text-xs text-muted-foreground">{property.agentId.email}</p>
+                    )}
                   </div>
                 )}
                 {property.createdAt && (

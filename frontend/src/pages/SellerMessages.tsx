@@ -8,6 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useSearchParams } from "react-router-dom";
 import { useSocket } from "@/context/SocketContext";
 import { Message } from "@/types/models";
+import { useUserIdConversationDeepLink } from "@/hooks/useUserIdConversationDeepLink";
 
 const SellerMessages = () => {
   const queryClient = useQueryClient();
@@ -21,6 +22,18 @@ const SellerMessages = () => {
   const [search, setSearch] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  useEffect(() => {
+    const conv = searchParams.get("conversation");
+    if (conv) setSelectedConversation(conv);
+  }, [searchParams]);
+
+  useUserIdConversationDeepLink({
+    conversationsQueryKey: ["seller-conversations"],
+    messagesPath: "/seller/messages",
+    selectedConversation,
+    setSelectedConversation,
+  });
+
   const { data: conversationsData, isLoading: conversationsLoading, error: conversationsError } = useQuery({
     queryKey: ["seller-conversations"],
     queryFn: () => messageService.conversations(),
@@ -30,24 +43,15 @@ const SellerMessages = () => {
 
   const selectedConv = conversations.find((c) => {
     const convId = c._id || c.id;
-    const convIdStr = typeof convId === 'string' ? convId : String(convId);
-    const selectedStr = typeof selectedConversation === 'string' ? selectedConversation : String(selectedConversation);
+    const convIdStr = typeof convId === "string" ? convId : String(convId);
+    const selectedStr =
+      typeof selectedConversation === "string" ? selectedConversation : String(selectedConversation);
     return convIdStr === selectedStr;
   }) || null;
 
-  // Debug logging
-  useEffect(() => {
-    console.log('Selected conversation:', selectedConversation);
-    console.log('Selected conv found:', selectedConv);
-    console.log('All conversations:', conversations.map(c => ({ id: c._id || c.id, participants: c.participants })));
-  }, [selectedConversation, selectedConv, conversations]);
-
   const { data: messagesData, isLoading: messagesLoading, error: messagesError } = useQuery({
     queryKey: ["conversation-messages", selectedConversation],
-    queryFn: () => {
-      console.log('Fetching messages for conversation:', selectedConversation);
-      return messageService.getMessages(selectedConversation || "");
-    },
+    queryFn: () => messageService.getMessages(selectedConversation || ""),
     enabled: Boolean(selectedConversation),
     // Removed refetchInterval - using Socket.IO for real-time updates
   });
@@ -180,7 +184,6 @@ const SellerMessages = () => {
                 const selectedStr = String(selectedConversation || '');
                 const isSelected = convIdStr === selectedStr;
                 const handleClick = () => {
-                  console.log('Clicking conversation - Setting ID:', convIdStr, 'Type:', typeof convId, 'Value:', convId);
                   setSelectedConversation(convIdStr);
                 };
 

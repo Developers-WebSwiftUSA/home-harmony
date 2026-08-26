@@ -1,4 +1,4 @@
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { LayoutDashboard, Users, Home, Calendar, BarChart3, Shield, Bell, MessageSquare, Settings, LogOut, CheckCircle, XCircle, Clock, TrendingUp, Eye, KeyRound, Heart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
@@ -7,6 +7,7 @@ import property2 from "@/assets/property-2.jpg";
 import { userService } from "@/services/user.service";
 import { propertyService } from "@/services/property.service";
 import { tourService } from "@/services/tour.service";
+import { useAuth } from "@/context/AuthContext";
 
 const stats = [
   { icon: Users, label: "Total Users", value: "2,847", change: "+12%", color: "text-primary" },
@@ -27,6 +28,14 @@ const recentUsers = [
 ];
 
 const DashboardSidebar = ({ active, role }: { active: string; role: string }) => {
+  const navigate = useNavigate();
+  const { logout } = useAuth();
+
+  const handleSignOut = () => {
+    logout();
+    navigate("/login", { replace: true });
+  };
+
   const links: Record<string, { icon: any; label: string; href: string }[]> = {
     admin: [
       { icon: LayoutDashboard, label: "Dashboard", href: "/admin" },
@@ -95,9 +104,13 @@ const DashboardSidebar = ({ active, role }: { active: string; role: string }) =>
         ))}
       </nav>
 
-      <Link to="/login" className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-dark-surface-foreground/60 hover:text-dark-surface-foreground hover:bg-dark-surface-muted transition-colors mt-4">
+      <button
+        type="button"
+        onClick={handleSignOut}
+        className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-dark-surface-foreground/60 hover:text-dark-surface-foreground hover:bg-dark-surface-muted transition-colors mt-4 w-full text-left"
+      >
         <LogOut className="w-4 h-4" /> Sign Out
-      </Link>
+      </button>
     </aside>
   );
 };

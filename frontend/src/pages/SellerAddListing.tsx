@@ -1,15 +1,26 @@
 import { useEffect, useState } from "react";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "react-router-dom";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useNavigate, useParams } from "react-router-dom";
 import { DashboardSidebar } from "./AdminDashboard";
 import { Button } from "@/components/ui/button";
+import { PropertyLocationPicker, isValidPropertyCoordinates } from "@/components/PropertyLocationPicker";
 import { propertyService } from "@/services/property.service";
 import { uploadService } from "@/services/upload.service";
 import { toast } from "sonner";
 
 const SellerAddListing = () => {
+  const { id } = useParams<{ id: string }>();
+  const isEditing = Boolean(id);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+
+  const { data: existingData, isLoading: loadingExisting } = useQuery({
+    queryKey: ["seller-listing", id],
+    queryFn: () => propertyService.getById(id!, true),
+    enabled: isEditing,
+  });
+
+  const existing = existingData?.data;
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -22,80 +33,183 @@ const SellerAddListing = () => {
     city: "",
     state: "",
     zipCode: "",
-    latitude: "0",
-    longitude: "0",
+    latitude: "",
+    longitude: "",
     amenities: "",
+    listingType: "sale",
+    furnished: false,
+    petPolicy: "negotiable",
+    petFee: "",
+    laundry: "none",
+    deposit: "",
+    availabilityDate: "",
   });
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string>("");
+  const [existingImageUrl, setExistingImageUrl] = useState<string>("");
 
   useEffect(() => {
-    if (!imageFile) {
-      setPreviewUrl("");
-      return;
+    if (!existing) return;
+    const coords = existing.location?.coordinates?.coordinates;
+    setForm({
+      title: existing.title || "",
+      description: existing.description || "",
+      type: existing.type || "House",
+      price: String(existing.price ?? ""),
+      bedrooms: String(existing.bedrooms ?? ""),
+      bathrooms: String(existing.bathrooms ?? ""),
+      squareFeet: String(existing.squareFeet ?? ""),
+      address: existing.location?.address || "",
+      city: existing.location?.city || "",
+      state: existing.location?.state || "",
+      zipCode: existing.location?.zipCode || "",
+      latitude: coords?.[1] != null ? String(coords[1]) : "",
+      longitude: coords?.[0] != null ? String(coords[0]) : "",
+      amenities: existing.amenities?.join(", ") || "",
+      listingType: existing.listingType || "sale",
+      furnished: existing.rentalDetails?.furnished ?? false,
+      petPolicy: existing.rentalDetails?.petPolicy || "negotiable",
+      petFee: existing.rentalDetails?.petFee ? String(existing.rentalDetails.petFee) : "",
+      laundry: existing.rentalDetails?.laundry || "none",
+      deposit: existing.rentalDetails?.deposit ? String(existing.rentalDetails.deposit) : "",
+      availabilityDate: existing.availabilityDate
+        ? new Date(existing.availabilityDate).toISOString().slice(0, 10)
+        : "",
+    });
+    setExistingImageUrl(existing.images?.[0]?.url || "");
+  }, [existing]);
+
+  useEffect(() => {
+    if (imageFile) {
+      const objectUrl = URL.createObjectURL(imageFile);
+      setPreviewUrl(objectUrl);
+      return () => URL.revokeObjectURL(objectUrl);
     }
-    const objectUrl = URL.createObjectURL(imageFile);
-    setPreviewUrl(objectUrl);
-    return () => URL.revokeObjectURL(objectUrl);
+    setPreviewUrl("");
   }, [imageFile]);
 
-  const createMutation = useMutation({
-    mutationFn: async () => {
-      let uploadedImageUrl = "";
-      if (imageFile) {
-        const uploadResult = await uploadService.uploadImage(imageFile);
-        uploadedImageUrl = uploadResult.data.url;
-      }
+  const buildPayload = async () => {
+    let uploadedImageUrl = existingImageUrl;
+    if (imageFile) {
+      const uploadResult = await uploadService.uploadImage(imageFile);
+      uploadedImageUrl = uploadResult.data.url;
+    }
 
-      return propertyService.create({
-        title: form.title,
-        description: form.description,
-        type: form.type,
-        // Publish immediately so new listings appear on the public properties page.
-        status: "active",
-        price: Number(form.price),
-        bedrooms: Number(form.bedrooms),
-        bathrooms: Number(form.bathrooms),
-        squareFeet: Number(form.squareFeet),
-        location: {
-          address: form.address,
-          city: form.city,
-          state: form.state,
-          zipCode: form.zipCode,
-          country: "USA",
-          coordinates: {
-            type: "Point",
-            coordinates: [Number(form.longitude || 0), Number(form.latitude || 0)],
-          },
+    const petDetails = {
+      petPolicy: form.petPolicy as "allowed" | "not_allowed" | "negotiable",
+      petFee: form.petFee ? Number(form.petFee) : 0,
+    };
+
+    return {
+      title: form.title,
+      description: form.description,
+      type: form.type,
+      listingType: form.listingType as "sale" | "rent" | "both",
+      price: Number(form.price),
+      bedrooms: Number(form.bedrooms),
+      bathrooms: Number(form.bathrooms),
+      squareFeet: Number(form.squareFeet),
+      availabilityDate: form.availabilityDate || undefined,
+      rentalDetails:
+        form.listingType === "rent" || form.listingType === "both"
+          ? {
+              deposit: form.deposit ? Number(form.deposit) : 0,
+              furnished: form.furnished,
+              laundry: form.laundry as "in_unit" | "shared" | "none",
+              acceptsApplications: true,
+              ...petDetails,
+            }
+          : petDetails,
+      location: {
+        address: form.address,
+        city: form.city,
+        state: form.state,
+        zipCode: form.zipCode,
+        country: "USA",
+        coordinates: {
+          type: "Point" as const,
+          coordinates: [Number(form.longitude), Number(form.latitude)] as [number, number],
         },
-        images: uploadedImageUrl ? [{ url: uploadedImageUrl, isPrimary: true }] : [],
-        amenities: form.amenities
-          .split(",")
-          .map((item) => item.trim())
-          .filter(Boolean),
-      });
+      },
+      images: uploadedImageUrl ? [{ url: uploadedImageUrl, isPrimary: true }] : [],
+      amenities: form.amenities
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean),
+    };
+  };
+
+  const invalidateListingQueries = () => {
+    queryClient.invalidateQueries({ queryKey: ["seller-listings"] });
+    queryClient.invalidateQueries({ queryKey: ["seller-dashboard-listings"] });
+    queryClient.invalidateQueries({ queryKey: ["properties"] });
+    queryClient.invalidateQueries({ queryKey: ["rentals"] });
+    if (id) queryClient.invalidateQueries({ queryKey: ["seller-listing", id] });
+  };
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const payload = await buildPayload();
+      if (isEditing && id) {
+        return propertyService.update(id, { ...payload, status: existing?.status || "active" });
+      }
+      return propertyService.create({ ...payload, status: "active" });
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ["seller-listings"] });
-      queryClient.invalidateQueries({ queryKey: ["seller-dashboard-listings"] });
-      queryClient.invalidateQueries({ queryKey: ["properties"] });
-      toast.success("Listing created successfully");
+      invalidateListingQueries();
+      toast.success(isEditing ? "Listing updated successfully" : "Listing created successfully");
       navigate("/seller/listings");
     },
   });
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    createMutation.mutate();
+    const lat = Number(form.latitude);
+    const lng = Number(form.longitude);
+    if (!isValidPropertyCoordinates(lat, lng)) {
+      toast.error("Please select a location on the map or enter valid latitude and longitude.");
+      return;
+    }
+    saveMutation.mutate();
   };
+
+  const addressQuery = [form.address, form.city, form.state, form.zipCode].filter(Boolean).join(", ");
+  const displayImage = previewUrl || existingImageUrl;
+
+  if (isEditing && loadingExisting) {
+    return (
+      <div className="min-h-screen bg-muted flex">
+        <DashboardSidebar active="My Listings" role="seller" />
+        <main className="flex-1 ml-64 p-8">
+          <p className="text-sm text-muted-foreground">Loading listing...</p>
+        </main>
+      </div>
+    );
+  }
+
+  if (isEditing && !loadingExisting && !existing) {
+    return (
+      <div className="min-h-screen bg-muted flex">
+        <DashboardSidebar active="My Listings" role="seller" />
+        <main className="flex-1 ml-64 p-8">
+          <p className="text-sm text-muted-foreground mb-4">Listing not found.</p>
+          <Button onClick={() => navigate("/seller/listings")}>Back to listings</Button>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-muted flex">
       <DashboardSidebar active="My Listings" role="seller" />
       <main className="flex-1 ml-64 p-8">
         <div className="mb-8">
-          <h1 className="text-2xl font-heading font-bold text-foreground">Add New Listing</h1>
-          <p className="text-sm text-muted-foreground">Create and submit a new property listing</p>
+          <h1 className="text-2xl font-heading font-bold text-foreground">
+            {isEditing ? "Edit Listing" : "Add New Listing"}
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            {isEditing ? "Update your property listing details" : "Create and submit a new property listing"}
+          </p>
         </div>
 
         <form onSubmit={onSubmit} className="bg-card border border-border rounded-xl p-6 space-y-4 max-w-4xl">
@@ -110,7 +224,19 @@ const SellerAddListing = () => {
               />
             </div>
             <div>
-              <label className="text-xs text-muted-foreground block mb-1">Type</label>
+              <label className="text-xs text-muted-foreground block mb-1">Listing type</label>
+              <select
+                value={form.listingType}
+                onChange={(e) => setForm((p) => ({ ...p, listingType: e.target.value }))}
+                className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background"
+              >
+                <option value="sale">For Sale</option>
+                <option value="rent">For Rent</option>
+                <option value="both">Sale & Rent</option>
+              </select>
+            </div>
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1">Property type</label>
               <select
                 value={form.type}
                 onChange={(e) => setForm((p) => ({ ...p, type: e.target.value }))}
@@ -126,6 +252,78 @@ const SellerAddListing = () => {
             </div>
           </div>
 
+          {(form.listingType === "rent" || form.listingType === "both") && (
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-muted/50 rounded-lg border border-border">
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">Deposit ($)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={form.deposit}
+                  onChange={(e) => setForm((p) => ({ ...p, deposit: e.target.value }))}
+                  className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">Available from</label>
+                <input
+                  type="date"
+                  value={form.availabilityDate}
+                  onChange={(e) => setForm((p) => ({ ...p, availabilityDate: e.target.value }))}
+                  className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background"
+                />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">Laundry</label>
+                <select
+                  value={form.laundry}
+                  onChange={(e) => setForm((p) => ({ ...p, laundry: e.target.value }))}
+                  className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background"
+                >
+                  <option value="none">None</option>
+                  <option value="in_unit">In-unit</option>
+                  <option value="shared">Shared</option>
+                </select>
+              </div>
+              <label className="flex items-center gap-2 text-sm col-span-2">
+                <input
+                  type="checkbox"
+                  checked={form.furnished}
+                  onChange={(e) => setForm((p) => ({ ...p, furnished: e.target.checked }))}
+                />
+                Furnished
+              </label>
+            </div>
+          )}
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 bg-muted/50 rounded-lg border border-border">
+            <div>
+              <label className="text-xs text-muted-foreground block mb-1">Pet policy</label>
+              <select
+                value={form.petPolicy}
+                onChange={(e) => setForm((p) => ({ ...p, petPolicy: e.target.value }))}
+                className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background"
+              >
+                <option value="allowed">Pets allowed</option>
+                <option value="negotiable">Pets negotiable</option>
+                <option value="not_allowed">No pets</option>
+              </select>
+            </div>
+            {(form.listingType === "rent" || form.listingType === "both") && (
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">Monthly pet fee ($)</label>
+                <input
+                  type="number"
+                  min="0"
+                  value={form.petFee}
+                  onChange={(e) => setForm((p) => ({ ...p, petFee: e.target.value }))}
+                  placeholder="0"
+                  className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background"
+                />
+              </div>
+            )}
+          </div>
+
           <div>
             <label className="text-xs text-muted-foreground block mb-1">Description</label>
             <textarea
@@ -139,7 +337,9 @@ const SellerAddListing = () => {
 
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
-              <label className="text-xs text-muted-foreground block mb-1">Price</label>
+              <label className="text-xs text-muted-foreground block mb-1">
+                {form.listingType === "rent" ? "Monthly rent ($)" : "Price ($)"}
+              </label>
               <input
                 required
                 type="number"
@@ -222,28 +422,23 @@ const SellerAddListing = () => {
             </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs text-muted-foreground block mb-1">Latitude (optional)</label>
-              <input
-                type="number"
-                step="any"
-                value={form.latitude}
-                onChange={(e) => setForm((p) => ({ ...p, latitude: e.target.value }))}
-                className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background"
-              />
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground block mb-1">Longitude (optional)</label>
-              <input
-                type="number"
-                step="any"
-                value={form.longitude}
-                onChange={(e) => setForm((p) => ({ ...p, longitude: e.target.value }))}
-                className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background"
-              />
-            </div>
-          </div>
+          <PropertyLocationPicker
+            latitude={form.latitude}
+            longitude={form.longitude}
+            addressQuery={addressQuery}
+            onChange={({ latitude, longitude }) =>
+              setForm((prev) => ({ ...prev, latitude, longitude }))
+            }
+            onPlaceSelect={(place) =>
+              setForm((prev) => ({
+                ...prev,
+                address: place.address || prev.address,
+                city: place.city || prev.city,
+                state: place.state || prev.state,
+                zipCode: place.zipCode || prev.zipCode,
+              }))
+            }
+          />
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
@@ -267,20 +462,26 @@ const SellerAddListing = () => {
             </div>
           </div>
 
-          {previewUrl ? (
+          {displayImage ? (
             <div>
               <label className="text-xs text-muted-foreground block mb-2">Image Preview</label>
               <img
-                src={previewUrl}
-                alt="Selected property preview"
+                src={displayImage}
+                alt="Property preview"
                 className="w-full max-w-sm h-52 object-cover rounded-lg border border-border"
               />
             </div>
           ) : null}
 
           <div className="flex items-center gap-2">
-            <Button type="submit" disabled={createMutation.isPending}>
-              {createMutation.isPending ? "Creating..." : "Create Listing"}
+            <Button type="submit" disabled={saveMutation.isPending}>
+              {saveMutation.isPending
+                ? isEditing
+                  ? "Saving..."
+                  : "Creating..."
+                : isEditing
+                  ? "Save Changes"
+                  : "Create Listing"}
             </Button>
             <Button type="button" variant="outline" onClick={() => navigate("/seller/listings")}>
               Cancel

@@ -6,6 +6,10 @@ const conversationSchema = new mongoose.Schema({
     ref: 'User',
     required: true
   }],
+  directKey: {
+    type: String,
+    default: null
+  },
   propertyId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Property',
@@ -38,13 +42,10 @@ const conversationSchema = new mongoose.Schema({
   timestamps: true
 });
 
-// Indexes
 conversationSchema.index({ participants: 1 });
 conversationSchema.index({ propertyId: 1 });
 conversationSchema.index({ lastMessageAt: -1 });
-
-// Ensure unique conversations between two users
-conversationSchema.index({ participants: 1, propertyId: 1 }, { unique: true });
+conversationSchema.index({ directKey: 1 }, { unique: true, sparse: true });
 
 const Conversation = mongoose.model('Conversation', conversationSchema);
 

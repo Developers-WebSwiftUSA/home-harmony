@@ -5,6 +5,12 @@ import { Favorite } from "@/types/models";
 export const favoriteService = {
   list: () => apiRequest<ApiResponse<Favorite[]>>("/favorites", { auth: true }),
 
+  check: (propertyId: string) =>
+    apiRequest<ApiResponse<Favorite> & { isFavorited: boolean }>(
+      `/favorites/check/${propertyId}`,
+      { auth: true }
+    ),
+
   add: (propertyId: string) =>
     apiRequest<ApiResponse<Favorite>>("/favorites", {
       method: "POST",
@@ -17,5 +23,13 @@ export const favoriteService = {
       method: "DELETE",
       auth: true,
     }),
+
+  removeByProperty: async (propertyId: string) => {
+    const check = await favoriteService.check(propertyId);
+    if (!check.isFavorited || !check.data?._id) {
+      return { success: true, message: "Not favorited" };
+    }
+    return favoriteService.remove(check.data._id);
+  },
 };
 

@@ -1,41 +1,52 @@
-import { useSearchParams, Link } from "react-router-dom";
-import { Phone, Mail, MapPin, Star, MessageSquare } from "lucide-react";
+import { useSearchParams, Link, useNavigate } from "react-router-dom";
+import { Phone, Mail, MapPin, MessageSquare } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import Navbar from "@/components/landing/Navbar";
 import Footer from "@/components/landing/Footer";
 import { Button } from "@/components/ui/button";
-import { useQuery } from "@tanstack/react-query";
-import { agentPublicService } from "@/services/agent.service";
-import { UserProfileAvatar } from "@/components/user/UserProfileAvatar";
-import type { PublicAgent, User } from "@/types/models";
-
-function agentAsUser(a: PublicAgent): User {
-  return {
-    email: a.email || "",
-    role: "agent",
-    firstName: a.firstName,
-    lastName: a.lastName,
-    avatar: a.avatar,
-  };
-}
+import { userService } from "@/services/user.service";
+import { UserAvatar } from "@/components/UserAvatar";
+import { RatingStars } from "@/components/RatingStars";
+import { getDisplayName } from "@/lib/userDisplay";
+import { toast } from "sonner";
+import { buildLoginRedirect } from "@/lib/propertyRoutes";
 
 const ContactAgent = () => {
+  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const propertyTitle = searchParams.get("propertyTitle") || "Selected Property";
   const agentId = searchParams.get("agentId");
+  const propertyId = searchParams.get("propertyId") || "";
+  const propertyTitle = searchParams.get("propertyTitle") || "Selected Property";
+
+  const handleFormSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
+    if (propertyId) {
+      navigate(buildLoginRedirect(`/buyer/messages?propertyId=${propertyId}`));
+      return;
+    }
+    toast.info("Use Start in-app chat to message this agent directly.");
+  };
 
   const { data, isLoading, isError } = useQuery({
-    queryKey: ["public-agent", agentId],
-    queryFn: () => agentPublicService.getById(agentId!),
+    queryKey: ["contact-agent-profile", agentId],
+    queryFn: () => userService.getAgentProfile(agentId!),
     enabled: Boolean(agentId),
   });
 
-  const agent = data?.data;
+  const profile = data?.data;
+  const agent = profile?.agent;
+  const rating = profile
+    ? { average: profile.averageRating, count: profile.reviewCount }
+    : getAgentRating(agent);
+  const location = [agent?.location?.city, agent?.location?.state, agent?.location?.country]
+    .filter(Boolean)
+    .join(" · ");
 
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
 
-      <section className="pt-32 pb-10 bg-muted/60">
+      <section className="py-10 bg-muted/60">
         <div className="container max-w-5xl">
           <h1 className="text-3xl md:text-4xl font-heading font-bold text-foreground mb-2">
             Contact Agent
@@ -49,83 +60,64 @@ const ContactAgent = () => {
       <section className="section-padding">
         <div className="container max-w-5xl grid grid-cols-1 lg:grid-cols-3 gap-8">
           <aside className="lg:col-span-1 bg-card border border-border rounded-xl p-6 space-y-4">
-            {!agentId ? (
-              <div className="text-sm text-muted-foreground space-y-3">
-                <p>No agent selected.</p>
-                <Button variant="outline" size="sm" asChild>
-                  <Link to="/agents">Browse agents</Link>
-                </Button>
-              </div>
-            ) : isLoading ? (
-              <p className="text-sm text-muted-foreground">Loading agent…</p>
+            {isLoading ? (
+              <p className="text-sm text-muted-foreground">Loading agent profile...</p>
             ) : isError || !agent ? (
-              <div className="text-sm text-muted-foreground space-y-3">
-                <p>We could not load this agent. They may no longer be listed.</p>
-                <Button variant="outline" size="sm" asChild>
-                  <Link to="/agents">Browse agents</Link>
-                </Button>
-              </div>
+              <p className="text-sm text-muted-foreground">Agent profile unavailable.</p>
             ) : (
               <>
                 <div className="flex items-center gap-4">
-                  <UserProfileAvatar user={agentAsUser(agent)} sizeClassName="h-16 w-16" />
+                  <UserAvatar user={agent} size="lg" className="w-16 h-16" />
                   <div>
                     <h2 className="font-heading font-bold text-foreground text-lg">
-                      {[agent.firstName, agent.lastName].filter(Boolean).join(" ").trim() ||
-                        agent.email ||
-                        "Agent"}
+                      {getDisplayName(agent)}
                     </h2>
-                    <p className="text-xs text-muted-foreground">{agent.roleTitle}</p>
-                    {agent.agentProfile?.yearsOfExperience != null && agent.agentProfile.yearsOfExperience > 0 ? (
-                      <p className="text-xs text-muted-foreground">
-                        {agent.agentProfile.yearsOfExperience}+ years experience
-                      </p>
-                    ) : null}
+                    <p className="text-xs text-muted-foreground">
+                      {agent.agentProfile?.specialization?.[0] || "Property Specialist"}
+                      {agent.agentProfile?.yearsOfExperience
+                        ? ` · ${agent.agentProfile.yearsOfExperience}+ years experience`
+                        : ""}
+                    </p>
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Star className="w-4 h-4 text-yellow-500 shrink-0" />
-                  <span className="font-medium text-foreground">
-                    {(agent.agentProfile?.rating?.count ?? 0) === 0
-                      ? "0"
-                      : Number(agent.agentProfile?.rating?.average ?? 0).toFixed(1)}
-                  </span>
-                  <span>
-                    · {(agent.agentProfile?.rating?.count ?? 0)}{" "}
-                    {(agent.agentProfile?.rating?.count ?? 0) === 1 ? "review" : "reviews"}
-                  </span>
-                </div>
+                <RatingStars rating={rating} />
+
+                {agent.agentProfile?.bio && (
+                  <p className="text-sm text-muted-foreground leading-relaxed">{agent.agentProfile.bio}</p>
+                )}
 
                 <div className="space-y-3 text-sm">
-                  {agent.phone ? (
+                  {agent.phone && (
                     <div className="flex items-center gap-2">
-                      <Phone className="w-4 h-4 text-primary shrink-0" />
-                      <a href={`tel:${agent.phone}`} className="hover:text-primary break-all">
+                      <Phone className="w-4 h-4 text-primary" />
+                      <a href={`tel:${agent.phone}`} className="hover:text-primary">
                         {agent.phone}
                       </a>
                     </div>
-                  ) : null}
-                  {agent.email ? (
+                  )}
+                  {agent.email && (
                     <div className="flex items-center gap-2">
-                      <Mail className="w-4 h-4 text-primary shrink-0" />
-                      <a href={`mailto:${agent.email}`} className="hover:text-primary break-all">
+                      <Mail className="w-4 h-4 text-primary" />
+                      <a href={`mailto:${agent.email}`} className="hover:text-primary">
                         {agent.email}
                       </a>
                     </div>
-                  ) : null}
-                  {agent.location ? (
+                  )}
+                  {location && (
                     <div className="flex items-center gap-2">
-                      <MapPin className="w-4 h-4 text-primary shrink-0" />
-                      <span>{agent.location}</span>
+                      <MapPin className="w-4 h-4 text-primary" />
+                      <span>{location}</span>
                     </div>
-                  ) : null}
+                  )}
                 </div>
 
-                <Button variant="outline" className="w-full gap-2 text-xs" type="button" disabled>
-                  <MessageSquare className="w-4 h-4" />
-                  Start in‑app chat (coming soon)
-                </Button>
+                <Link to={`/login?chatProperty=${searchParams.get("propertyId") || ""}`}>
+                  <Button variant="outline" className="w-full gap-2 text-xs">
+                    <MessageSquare className="w-4 h-4" />
+                    Start in-app chat
+                  </Button>
+                </Link>
               </>
             )}
           </aside>
@@ -135,10 +127,10 @@ const ContactAgent = () => {
               Send a message to the agent
             </h2>
             <p className="text-xs text-muted-foreground mb-6">
-              You’re inquiring about: <span className="font-medium text-foreground">{propertyTitle}</span>
+              You&apos;re inquiring about: <span className="font-medium text-foreground">{propertyTitle}</span>
             </p>
 
-            <form className="space-y-4">
+            <form className="space-y-4" onSubmit={handleFormSubmit}>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
                   <label className="text-xs font-medium text-muted-foreground mb-1 block">
@@ -198,7 +190,7 @@ const ContactAgent = () => {
                 />
               </div>
 
-              <Button className="w-full md:w-auto" type="button">
+              <Button className="w-full md:w-auto" type="submit">
                 Send Message to Agent
               </Button>
             </form>

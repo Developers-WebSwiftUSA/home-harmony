@@ -8,24 +8,30 @@ import {
   approveProperty,
   rejectProperty,
   searchNearby,
+  suggestLocations,
   getMyProperties,
-  getAgentProperties
+  getAgentProperties,
+  assignAgent,
+  setPropertyViewership
 } from '../controllers/property.controller.js';
-import { protect, authorize, blockUnverifiedAgent } from '../middleware/auth.middleware.js';
+import { protect, authorize, optionalAuth } from '../middleware/auth.middleware.js';
 
 const router = express.Router();
 
 // Public routes
 router.get('/', getProperties);
 router.get('/search/nearby', searchNearby);
-router.get('/:id', getProperty); // Public - anyone can view property details
+router.get('/locations/suggest', suggestLocations);
+router.get('/mine', protect, authorize('seller', 'admin'), getMyProperties);
+router.get('/agent', protect, authorize('agent', 'admin'), getAgentProperties);
+router.get('/:id', optionalAuth, getProperty);
 
 // Protected routes
 router.use(protect);
 
-router.get('/mine', authorize('seller', 'admin'), getMyProperties);
-router.get('/agent', authorize('agent', 'admin'), blockUnverifiedAgent, getAgentProperties);
 router.post('/', authorize('seller', 'admin'), createProperty);
+router.put('/:id/assign-agent', authorize('seller', 'admin'), assignAgent);
+router.put('/:id/viewership', setPropertyViewership);
 router.put('/:id', updateProperty);
 router.delete('/:id', deleteProperty);
 

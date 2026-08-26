@@ -1,9 +1,5 @@
 export type UserRole = "admin" | "buyer" | "seller" | "agent";
 
-export interface AgentProfile {
-  rating?: { average?: number; count?: number };
-}
-
 export interface User {
   id?: string;
   _id?: string;
@@ -14,25 +10,6 @@ export interface User {
   lastName?: string;
   avatar?: string;
   phone?: string;
-  agentProfile?: AgentProfile;
-}
-
-export interface PublicAgent {
-  _id: string;
-  firstName?: string;
-  lastName?: string;
-  email?: string;
-  phone?: string;
-  avatar?: string;
-  location?: string;
-  roleTitle?: string;
-  agentProfile?: {
-    bio?: string;
-    yearsOfExperience?: number;
-    languages?: string[];
-    rating?: { average?: number; count?: number };
-  };
-  propertyCount: number;
 }
 
 export interface Property {

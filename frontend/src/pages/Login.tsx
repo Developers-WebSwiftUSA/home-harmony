@@ -1,13 +1,40 @@
 import { FormEvent, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { Mail, Lock, Eye, EyeOff, User, Phone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { UserRole } from "@/types/models";
+import { toast } from "sonner";
+
+const roleHomePath = (role?: string) => {
+  if (role === "admin") return "/admin";
+  if (role === "seller") return "/seller";
+  if (role === "agent") return "/agent";
+  return "/buyer";
+};
+
+const isAllowedRedirect = (path: string, role?: string) => {
+  if (!path.startsWith("/")) return false;
+  if (path.startsWith("//")) return false;
+  if (path.startsWith("/admin")) return role === "admin";
+  if (path.startsWith("/seller")) return role === "seller";
+  if (path.startsWith("/agent")) return role === "agent";
+  if (path.startsWith("/buyer")) return role === "buyer";
+  return true;
+};
 
 const Login = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
   const { login, register } = useAuth();
+  const redirectTo = searchParams.get("redirect");
+  const chatProperty = searchParams.get("chatProperty");
+  const fromState = (location.state as { from?: { pathname?: string; search?: string } } | null)?.from;
+  const fromPath =
+    fromState?.pathname != null
+      ? `${fromState.pathname}${fromState.search || ""}`
+      : null;
   const [showPassword, setShowPassword] = useState(false);
   const [isRegister, setIsRegister] = useState(false);
   const [role, setRole] = useState<UserRole>("buyer");
@@ -22,11 +49,31 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
 
   const redirectByRole = (nextRole?: string) => {
-    const roleToUse = nextRole || role;
-    if (roleToUse === "admin") navigate("/admin");
-    else if (roleToUse === "seller") navigate("/seller");
-    else if (roleToUse === "agent") navigate("/agent");
-    else navigate("/buyer");
+    navigate(roleHomePath(nextRole || role));
+  };
+
+  const redirectAfterAuth = (nextRole?: string) => {
+    if (chatProperty) {
+      if (nextRole !== "buyer") {
+        toast.error("Log in as a buyer to chat about this property");
+        navigate(`/properties/${chatProperty}`);
+        return;
+      }
+      navigate(`/buyer/messages?propertyId=${chatProperty}`);
+      return;
+    }
+
+    const target = redirectTo || fromPath;
+    if (target) {
+      if (isAllowedRedirect(target, nextRole)) {
+        navigate(target);
+        return;
+      }
+      toast.info("That page isn't available for your account role.", {
+        description: "Taking you to your dashboard instead.",
+      });
+    }
+    redirectByRole(nextRole);
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -43,10 +90,10 @@ const Login = () => {
           lastName: form.lastName,
           phone: form.phone,
         });
-        redirectByRole(user.role);
+        redirectAfterAuth(user.role);
       } else {
         const user = await login(form.email, form.password);
-        redirectByRole(user.role);
+        redirectAfterAuth(user.role);
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Authentication failed");

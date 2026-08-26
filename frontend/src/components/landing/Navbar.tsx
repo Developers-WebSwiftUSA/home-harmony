@@ -4,10 +4,13 @@ import { Menu, X, User, Mail, Phone, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Logo from "./Logo";
 import { useAuth } from "@/context/AuthContext";
+import { UserAvatar } from "@/components/UserAvatar";
+import { getDisplayName } from "@/lib/userDisplay";
 
 const navLinks = [
   { label: "Home", href: "/" },
   { label: "Properties", href: "/properties" },
+  { label: "Rentals", href: "/rentals" },
   { label: "Agents", href: "/agents" },
   { label: "How It Works", href: "/#how-it-works" },
   { label: "News", href: "/news" },
@@ -36,7 +39,7 @@ const Navbar = () => {
   };
 
   return (
-    <header className="w-full z-50 absolute top-0 left-0">
+    <header className="w-full z-50 sticky top-0 left-0">
       {/* First Row: Two links on left, Logo center, User/Login on right */}
       <div className="bg-[#FEFBF3] border-b border-amber-200/30">
         <div className="container">
@@ -77,25 +80,15 @@ const Navbar = () => {
                     to={getDashboardPath()}
                     className="flex items-center gap-2 text-sm text-slate-700 hover:text-primary transition-colors"
                   >
-                    {user.avatar ? (
-                      <img 
-                        src={user.avatar} 
-                        alt={user.firstName || "User"} 
-                        className="w-8 h-8 rounded-full object-cover border-2 border-slate-300"
-                      />
-                    ) : (
-                      <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center border-2 border-slate-300">
-                        <User className="w-4 h-4 text-primary" />
-                      </div>
-                    )}
+                    <UserAvatar user={user} size="sm" className="border-slate-300" />
                     <span className="hidden sm:inline font-medium text-slate-800">
-                      {user.firstName || user.email}
+                      {getDisplayName(user)}
                     </span>
                   </Link>
                   <button
                     onClick={() => {
                       logout();
-                      navigate("/");
+                      navigate("/", { replace: true });
                     }}
                     className="p-2 text-slate-700 hover:text-primary transition-colors"
                     title="Logout"

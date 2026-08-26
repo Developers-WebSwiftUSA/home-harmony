@@ -26,3 +26,13 @@ export function getSocketOrigin(): string {
     typeof raw === "string" && raw.trim() !== "" ? raw.trim() : "http://localhost:5000/api";
   return fallback.replace(/\/api\/?$/i, "").replace(/\/$/, "") || "http://localhost:5000";
 }
+
+/** Origin for /uploads and other non-API assets. */
+export function getApiOrigin(): string {
+  const api = getApiBaseUrl();
+  if (api.startsWith("/")) {
+    if (typeof window !== "undefined") return window.location.origin;
+    return "";
+  }
+  return api.replace(/\/api\/?$/i, "").replace(/\/$/, "") || "http://localhost:5000";
+}

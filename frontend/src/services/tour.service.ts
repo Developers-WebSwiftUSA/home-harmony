@@ -15,12 +15,22 @@ export const tourService = {
   getById: (id: string) =>
     apiRequest<ApiResponse<Tour>>(`/tours/${id}`, { auth: true }),
 
+  listReviews: (params?: Record<string, string | number | boolean | undefined>) => {
+    const query = new URLSearchParams();
+    Object.entries(params || {}).forEach(([key, value]) => {
+      if (value !== undefined && value !== "") query.append(key, String(value));
+    });
+    const suffix = query.toString() ? `?${query.toString()}` : "";
+    return apiRequest<ApiResponse<Tour[]>>(`/tours/reviews${suffix}`, { auth: true });
+  },
+
   create: (payload: {
     propertyId: string;
     date: string;
     startTime: string;
     endTime: string;
     message?: string;
+    tourType?: "in-person" | "virtual" | "open-house";
   }) =>
     apiRequest<ApiResponse<Tour>>("/tours", {
       method: "POST",
@@ -94,9 +104,19 @@ export const tourService = {
       body: JSON.stringify(payload),
     }),
 
-  availability: (propertyId: string, date: string) =>
-    apiRequest<ApiResponse<Array<{ startTime: string; endTime: string; available: boolean }>>>(
-      `/tours/availability?propertyId=${propertyId}&date=${date}`
-    ),
+  availability: (propertyId: string, date: string, excludeTourId?: string) => {
+    const params = new URLSearchParams({ propertyId, date });
+    if (excludeTourId) params.append("excludeTourId", excludeTourId);
+    return apiRequest<ApiResponse<Array<{ startTime: string; endTime: string; available: boolean }>>>(
+      `/tours/availability?${params.toString()}`
+    );
+  },
+
+  cancel: (id: string, cancelledBy: string, cancellationReason?: string) =>
+    apiRequest<ApiResponse<Tour>>(`/tours/${id}/status`, {
+      method: "PUT",
+      auth: true,
+      body: JSON.stringify({ status: "cancelled", cancellationReason, cancelledBy }),
+    }),
 };
 

@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import TourNotification from "@/components/tours/TourNotification";
 import { useAuth } from "@/context/AuthContext";
-import { Tour } from "@/types/models";
+import { isTourUpcoming } from "@/lib/tourDate";
 
 const BuyerTours = () => {
   const navigate = useNavigate();
@@ -35,9 +35,7 @@ const BuyerTours = () => {
   };
 
   const upcomingTours = filteredTours.filter(
-    (tour) =>
-      tour.status === "confirmed" &&
-      new Date(`${tour.date}T${tour.startTime}`) > new Date()
+    (tour) => tour.status === "confirmed" && isTourUpcoming(tour.date, tour.startTime)
   );
   const pendingTours = filteredTours.filter((tour) => tour.status === "pending");
   const rescheduleTours = filteredTours.filter(
@@ -48,7 +46,7 @@ const BuyerTours = () => {
 
   return (
     <div className="min-h-screen bg-muted flex">
-      <DashboardSidebar active="Tours" role="buyer" />
+      <DashboardSidebar active="My Tours" role="buyer" />
       <main className="flex-1 ml-64 p-8">
         <div className="mb-8">
           <h1 className="text-3xl font-heading font-bold text-foreground mb-2">My Tours</h1>

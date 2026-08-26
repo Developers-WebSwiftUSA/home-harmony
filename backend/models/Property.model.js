@@ -124,6 +124,27 @@ const propertySchema = new mongoose.Schema({
     default: 'sale'
   },
   availabilityDate: Date,
+  rentalDetails: {
+    deposit: { type: Number, default: 0 },
+    petFee: { type: Number, default: 0 },
+    petPolicy: {
+      type: String,
+      enum: ['allowed', 'not_allowed', 'negotiable'],
+      default: 'negotiable'
+    },
+    furnished: { type: Boolean, default: false },
+    laundry: {
+      type: String,
+      enum: ['in_unit', 'shared', 'none'],
+      default: 'none'
+    },
+    acceptsApplications: { type: Boolean, default: true },
+    monthlyFees: [{
+      label: String,
+      amount: Number
+    }],
+    utilitiesIncluded: [String]
+  },
   // Statistics
   views: {
     type: Number,
@@ -137,6 +158,16 @@ const propertySchema = new mongoose.Schema({
     type: Number,
     default: 0
   },
+  rating: {
+    average: {
+      type: Number,
+      default: 0
+    },
+    count: {
+      type: Number,
+      default: 0
+    }
+  },
   // SEO
   slug: {
     type: String,
@@ -148,6 +179,32 @@ const propertySchema = new mongoose.Schema({
   featured: {
     type: Boolean,
     default: false
+  },
+  promotion: {
+    type: {
+      type: String,
+      enum: ['advertisement', 'sponsored']
+    },
+    campaignId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'AdCampaign'
+    },
+    expiresAt: Date
+  },
+  promotionPriority: {
+    type: Number,
+    default: 0,
+    min: 0,
+    max: 2
+  },
+  viewershipEnabled: {
+    type: Boolean,
+    default: true
+  },
+  viewershipPausedAt: Date,
+  viewershipPausedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
   },
   createdAt: {
     type: Date,
@@ -173,7 +230,8 @@ propertySchema.index({ title: 'text', description: 'text' });
 propertySchema.index({ sellerId: 1 });
 propertySchema.index({ status: 1, type: 1 });
 propertySchema.index({ price: 1 });
-propertySchema.index({ createdAt: -1 });
+propertySchema.index({ listingType: 1, status: 1, price: 1 });
+propertySchema.index({ 'location.city': 1, listingType: 1 });
 
 // Generate slug before saving
 propertySchema.pre('save', function(next) {

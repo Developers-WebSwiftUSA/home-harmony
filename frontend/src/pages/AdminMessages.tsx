@@ -8,6 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useSearchParams } from "react-router-dom";
 import { useSocket } from "@/context/SocketContext";
 import { Message } from "@/types/models";
+import { useUserIdConversationDeepLink } from "@/hooks/useUserIdConversationDeepLink";
 
 const AdminMessages = () => {
   const queryClient = useQueryClient();
@@ -20,6 +21,18 @@ const AdminMessages = () => {
   const [messageText, setMessageText] = useState("");
   const [search, setSearch] = useState("");
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const conv = searchParams.get("conversation");
+    if (conv) setSelectedConversation(conv);
+  }, [searchParams]);
+
+  useUserIdConversationDeepLink({
+    conversationsQueryKey: ["admin-conversations"],
+    messagesPath: "/admin/messages",
+    selectedConversation,
+    setSelectedConversation,
+  });
 
   const { data: conversationsData, isLoading: conversationsLoading, error: conversationsError } = useQuery({
     queryKey: ["admin-conversations"],
@@ -173,7 +186,6 @@ const AdminMessages = () => {
                 const unread = Number((conv.unreadCount as Record<string, number> | undefined)?.[user?._id || user?.id || ""] || 0);
 
                 const handleClick = () => {
-                  console.log('Clicking conversation - Setting ID:', convIdStr, 'Type:', typeof convId, 'Value:', convId);
                   setSelectedConversation(convIdStr);
                 };
 
