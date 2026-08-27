@@ -117,12 +117,33 @@ export const getAdCampaigns = asyncHandler(async (req, res) => {
 
   const total = await AdCampaign.countDocuments(query);
 
+  let statusCounts;
+  if (req.user.role === 'admin') {
+    const [grouped, charged] = await Promise.all([
+      AdCampaign.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }]),
+      AdCampaign.aggregate([
+        { $match: { paymentStatus: 'charged' } },
+        { $group: { _id: null, total: { $sum: '$chargedAmount' }, count: { $sum: 1 } } },
+      ]),
+    ]);
+    statusCounts = grouped.reduce((acc, row) => {
+      if (row._id) acc[row._id] = row.count;
+      return acc;
+    }, {});
+    statusCounts.all = grouped.reduce((sum, row) => sum + row.count, 0);
+    statusCounts.pending = statusCounts.pending || 0;
+    statusCounts.active = statusCounts.active || 0;
+    statusCounts.revenue = charged[0]?.total || 0;
+    statusCounts.payments = charged[0]?.count || 0;
+  }
+
   res.status(200).json({
     success: true,
     count: campaigns.length,
     total,
     page: Number(page),
     pages: Math.ceil(total / Number(limit)),
+    ...(statusCounts && { statusCounts }),
     data: campaigns,
   });
 });

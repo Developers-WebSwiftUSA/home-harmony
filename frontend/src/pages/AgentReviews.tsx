@@ -1,3 +1,4 @@
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Star } from "lucide-react";
 import { DashboardSidebar } from "./AdminDashboard";
@@ -6,9 +7,11 @@ import { useAuth } from "@/context/AuthContext";
 import { getAgentReviewTours } from "@/components/AgentCustomerReviews";
 import { TourReviewsList } from "@/components/TourReviewsList";
 import { formatRating } from "@/lib/ratings";
+import { DashboardTabPills } from "@/components/dashboard/DashboardTabPills";
 
 const AgentReviews = () => {
   const { user, isAuthenticated } = useAuth();
+  const [pill, setPill] = useState("all");
   const agentUserId = user?._id || user?.id;
   const { data, isLoading } = useQuery({
     queryKey: ["agent-reviews", agentUserId],
@@ -18,6 +21,14 @@ const AgentReviews = () => {
 
   const tours = data?.data || [];
   const agentReviews = getAgentReviewTours(tours, agentUserId);
+  const recommended = tours.filter((t) => t.feedback?.wouldRecommend);
+  const excellent = agentReviews.filter((t) => t.feedback?.overallExperience === "excellent");
+  const visible = useMemo(() => {
+    if (pill === "agent") return agentReviews;
+    if (pill === "recommend") return recommended;
+    if (pill === "excellent") return excellent;
+    return tours;
+  }, [pill, agentReviews, recommended, excellent, tours]);
   const averageAgentRating =
     agentReviews.length > 0
       ? agentReviews.reduce((sum, tour) => sum + (tour.feedback?.agentRating || 0), 0) / agentReviews.length
@@ -38,30 +49,17 @@ const AgentReviews = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          <div className="bg-card border border-border rounded-xl p-4">
-            <div className="text-2xl font-bold text-foreground">{tours.length}</div>
-            <div className="text-sm text-muted-foreground">Tours with Feedback</div>
-          </div>
-          <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4">
-            <div className="text-2xl font-bold text-yellow-600">
-              {agentReviews.length ? formatRating(averageAgentRating) : "—"}
-            </div>
-            <div className="text-sm text-yellow-600">Your Avg Rating</div>
-          </div>
-          <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4">
-            <div className="text-2xl font-bold text-green-600">
-              {tours.filter((t) => t.feedback?.wouldRecommend).length}
-            </div>
-            <div className="text-sm text-green-600">Would Recommend</div>
-          </div>
-          <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4">
-            <div className="text-2xl font-bold text-blue-600">
-              {agentReviews.filter((t) => t.feedback?.overallExperience === "excellent").length}
-            </div>
-            <div className="text-sm text-blue-600">Excellent Reviews</div>
-          </div>
-        </div>
+        <DashboardTabPills
+          className="mb-8"
+          activeKey={pill}
+          onChange={setPill}
+          tabs={[
+            { key: "all", label: "Tours with Feedback", count: tours.length },
+            { key: "agent", label: "Your Avg Rating", count: agentReviews.length ? formatRating(averageAgentRating) : "—" },
+            { key: "recommend", label: "Would Recommend", count: recommended.length },
+            { key: "excellent", label: "Excellent Reviews", count: excellent.length },
+          ]}
+        />
 
         {agentReviews.length > 0 && (
           <div className="bg-card border border-border rounded-xl p-6 mb-8">
@@ -87,7 +85,7 @@ const AgentReviews = () => {
         )}
 
         <TourReviewsList
-          tours={tours}
+          tours={visible}
           isLoading={isLoading}
           defaultRatingType="agent"
           emptyMessage="No feedback yet. Reviews appear after buyers complete your tours and submit feedback."

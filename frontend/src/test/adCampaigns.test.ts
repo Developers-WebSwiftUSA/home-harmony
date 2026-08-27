@@ -14,10 +14,24 @@ const baseProperty = {
 } as Property;
 
 describe("promotionDisplay", () => {
-  it("formats currency and ad type labels", () => {
-    expect(formatCurrency(139.93)).toBe("$139.93");
-    expect(formatAdTypeLabel("sponsored")).toBe("Sponsored");
-    expect(formatAdTypeLabel("advertisement")).toBe("Advertisement");
+  it("builds invoice numbers and groups charged payments by customer", async () => {
+    const { invoiceNumber, isChargedPayment, getCustomerPayments, getBillingCustomerKey } = await import(
+      "@/features/ads/lib/campaignBilling"
+    );
+    expect(invoiceNumber("abc123xyz")).toBe("HTG-AD-BC123XYZ");
+    const charged = {
+      _id: "pay1",
+      requesterId: { _id: "u1", firstName: "Ann", lastName: "Lee", email: "ann@test.com" },
+      payment: { billingEmail: "ann@test.com", cardHolderName: "Ann Lee", cardLast4: "4242" },
+      paymentStatus: "charged",
+      chargedAmount: 50,
+      chargedAt: "2026-01-02T00:00:00.000Z",
+    } as never;
+    const pending = { ...charged, _id: "pay2", paymentStatus: "pending", chargedAmount: 0 } as never;
+    expect(isChargedPayment(charged)).toBe(true);
+    expect(isChargedPayment(pending)).toBe(false);
+    expect(getBillingCustomerKey(charged)).toBe("u1");
+    expect(getCustomerPayments([charged, pending], "u1")).toHaveLength(1);
   });
 
   it("detects active promotions", () => {

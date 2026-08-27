@@ -1,12 +1,25 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { Calendar, Search, Filter } from "lucide-react";
+import { Calendar, Search } from "lucide-react";
 import { DashboardSidebar } from "./AdminDashboard";
 import { tourService } from "@/services/tour.service";
 import { Input } from "@/components/ui/input";
 import TourNotification from "@/components/tours/TourNotification";
 import { useAuth } from "@/context/AuthContext";
+import { DashboardTabPills } from "@/components/dashboard/DashboardTabPills";
+import type { Tour } from "@/types/models";
+
+const RESCHEDULE_STATUSES = new Set([
+  "reschedule_requested",
+  "reschedule_pending_buyer_approval",
+]);
+
+const tourMatchesPill = (tour: Tour, key: string) => {
+  if (key === "all") return true;
+  if (key === "reschedule") return RESCHEDULE_STATUSES.has(tour.status);
+  return tour.status === key;
+};
 
 const SellerTours = () => {
   const navigate = useNavigate();
@@ -18,11 +31,15 @@ const SellerTours = () => {
   const toursQueryKey = role === "agent" ? "agent-tours" : "seller-tours";
 
   const { data, isLoading } = useQuery({
-    queryKey: [toursQueryKey, statusFilter],
-    queryFn: () => tourService.list({ status: statusFilter !== "all" ? statusFilter : undefined }),
+    queryKey: [toursQueryKey],
+    queryFn: () => tourService.list(),
   });
 
-  const tours = data?.data || [];
+  const allTours = data?.data || [];
+  const tours = useMemo(
+    () => allTours.filter((tour) => tourMatchesPill(tour, statusFilter)),
+    [allTours, statusFilter]
+  );
 
   const filteredTours = tours.filter((tour) => {
     const matchesSearch =
@@ -45,14 +62,12 @@ const SellerTours = () => {
       tour.status === "reschedule_pending_buyer_approval"
   );
 
-  // Calculate stats
   const stats = {
-    pending: tours.filter((t) => t.status === "pending").length,
-    confirmed: tours.filter((t) => t.status === "confirmed").length,
-    reschedule: tours.filter(
-      (t) => t.status === "reschedule_requested" || t.status === "reschedule_pending_buyer_approval"
-    ).length,
-    total: tours.length,
+    pending: allTours.filter((t) => t.status === "pending").length,
+    confirmed: allTours.filter((t) => t.status === "confirmed").length,
+    reschedule: allTours.filter((t) => RESCHEDULE_STATUSES.has(t.status)).length,
+    completed: allTours.filter((t) => t.status === "completed").length,
+    total: allTours.length,
   };
 
   return (
@@ -70,55 +85,28 @@ const SellerTours = () => {
           </p>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-card border border-border rounded-xl p-4">
-            <div className="text-2xl font-bold text-foreground">{stats.total}</div>
-            <div className="text-sm text-muted-foreground">Total Tours</div>
-          </div>
-          <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4">
-            <div className="text-2xl font-bold text-yellow-600">{stats.pending}</div>
-            <div className="text-sm text-yellow-600">Pending</div>
-          </div>
-          <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4">
-            <div className="text-2xl font-bold text-green-600">{stats.confirmed}</div>
-            <div className="text-sm text-green-600">Confirmed</div>
-          </div>
-          <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4">
-            <div className="text-2xl font-bold text-blue-600">{stats.reschedule}</div>
-            <div className="text-sm text-blue-600">Reschedule</div>
-          </div>
-        </div>
+        <DashboardTabPills
+          className="mb-6"
+          activeKey={statusFilter}
+          onChange={setStatusFilter}
+          tabs={[
+            { key: "all", label: "Total Tours", count: stats.total },
+            { key: "pending", label: "Pending", count: stats.pending },
+            { key: "confirmed", label: "Confirmed", count: stats.confirmed },
+            { key: "reschedule", label: "Reschedule", count: stats.reschedule },
+            { key: "completed", label: "Completed", count: stats.completed },
+          ]}
+        />
 
-        {/* Filters */}
         <div className="bg-card border border-border rounded-xl p-4 mb-6">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by property, buyer name, or location..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <Filter className="w-4 h-4 text-muted-foreground" />
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="border border-border rounded-md px-3 py-2 text-sm bg-background text-foreground outline-none"
-              >
-                <option value="all">All Tours</option>
-                <option value="pending">Pending</option>
-                <option value="confirmed">Confirmed</option>
-                <option value="reschedule_requested">Reschedule Requested</option>
-                <option value="reschedule_pending_buyer_approval">Awaiting Buyer Approval</option>
-                <option value="completed">Completed</option>
-                <option value="cancelled">Cancelled</option>
-                <option value="declined">Declined</option>
-              </select>
-            </div>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by property, buyer name, or location..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
           </div>
         </div>
 

@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
-import { Heart, Calendar, MapPin, Bed, Bath, Maximize, Bell, Search, TrendingUp, Home, Eye } from "lucide-react";
+import { DashboardTabPills } from "@/components/dashboard/DashboardTabPills";
+import { MapPin, Bed, Bath, Maximize, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DashboardSidebar } from "./AdminDashboard";
 import { useQuery } from "@tanstack/react-query";
@@ -72,23 +73,26 @@ const BuyerDashboard = () => {
           </button>
         </div>
 
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-            {[
-            { icon: Heart, label: "Favorites", value: String(favorites.length) },
-            { icon: Calendar, label: "Tours Scheduled", value: String((toursData?.data || []).length) },
-            { icon: Eye, label: "Active Tours", value: String(upcomingTours.length) },
-            { icon: Search, label: "Saved Searches", value: String(savedSearchCount) },
-          ].map((s) => (
-            <div key={s.label} className="bg-card border border-border rounded-xl p-5">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-3">
-                <s.icon className="w-5 h-5 text-primary" />
-              </div>
-              <div className="text-2xl font-bold text-foreground">{s.value}</div>
-              <div className="text-xs text-muted-foreground">{s.label}</div>
-            </div>
-          ))}
-        </div>
+        <DashboardTabPills
+          className="mb-8"
+          activeKey=""
+          tabs={[
+            { key: "favorites", label: "Favorites", count: favorites.length, href: "/buyer/favorites" },
+            {
+              key: "tours",
+              label: "Tours Scheduled",
+              count: (toursData?.data || []).length,
+              href: "/buyer/tours",
+            },
+            { key: "active", label: "Active Tours", count: upcomingTours.length, href: "/buyer/tours" },
+            {
+              key: "searches",
+              label: "Saved Searches",
+              count: savedSearchCount,
+              href: "/buyer/saved-rentals",
+            },
+          ]}
+        />
 
         {/* Upcoming Tours */}
         <div className="bg-card border border-border rounded-xl p-6 mb-6">

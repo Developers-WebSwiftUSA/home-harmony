@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Home, Users, Loader2, ChevronRight, MessageSquare } from "lucide-react";
+import { Loader2, ChevronRight, MessageSquare } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { CrmDetailDialog } from "@/components/dashboard/CrmDetailDialog";
 import { DashboardTabPills } from "@/components/dashboard/DashboardTabPills";
@@ -132,27 +132,28 @@ export const PartnerDetailDialog = ({
             />
 
             {partnerTab === "overview" && (
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
-                {[
-                  { icon: Home, label: "Listings", value: detail.properties.length },
-                  { icon: Users, label: "Sale Buyers", value: detail.saleBuyers.length },
-                  { icon: Users, label: "Rental Buyers", value: detail.rentBuyers.length },
+              <DashboardTabPills
+                className="mb-2"
+                activeKey=""
+                onChange={(key) => {
+                  if (key === "active") {
+                    setPartnerTab("listings");
+                    return;
+                  }
+                  setPartnerTab(key as PartnerTab);
+                  onSelectBuyer(null, key === "rent-buyers" ? "rent" : "sale");
+                }}
+                tabs={[
+                  { key: "listings", label: "Listings", count: detail.properties.length },
+                  { key: "sale-buyers", label: "Sale Buyers", count: detail.saleBuyers.length },
+                  { key: "rent-buyers", label: "Rental Buyers", count: detail.rentBuyers.length },
                   {
-                    icon: Home,
+                    key: "active",
                     label: "Active",
-                    value: detail.properties.filter((p) => p.status === "active").length,
+                    count: detail.properties.filter((p) => p.status === "active").length,
                   },
-                ].map((item) => (
-                  <div
-                    key={item.label}
-                    className="bg-muted/70 rounded-xl p-4 text-center border border-border/50"
-                  >
-                    <item.icon className="w-5 h-5 text-primary mx-auto mb-2" />
-                    <div className="text-2xl font-bold">{item.value}</div>
-                    <div className="text-xs text-muted-foreground">{item.label}</div>
-                  </div>
-                ))}
-              </div>
+                ]}
+              />
             )}
 
             {partnerTab === "listings" && (

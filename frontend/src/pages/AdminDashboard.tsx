@@ -276,29 +276,16 @@ const AdminDashboard = () => {
           </button>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          {dashboardStats.map((stat) => (
-            <Link
-              key={stat.label}
-              to={stat.href}
-              className="bg-card border border-border rounded-xl p-5 hover:border-primary/40 hover:shadow-sm transition-all"
-            >
-              <div className="flex items-center justify-between mb-3">
-                <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                  <stat.icon className="w-5 h-5 text-primary" />
-                </div>
-                <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                  stat.change.startsWith("-")
-                    ? "text-red-600 bg-red-50"
-                    : "text-green-600 bg-green-50"
-                }`}>{stat.change}</span>
-              </div>
-              <div className="text-2xl font-bold text-foreground">{stat.value}</div>
-              <div className="text-xs text-muted-foreground">{stat.label}</div>
-            </Link>
-          ))}
-        </div>
+        <DashboardTabPills
+          className="mb-8"
+          activeKey=""
+          tabs={dashboardStats.map((stat) => ({
+            key: stat.label,
+            label: stat.label,
+            count: stat.value,
+            href: stat.href,
+          }))}
+        />
 
         <div className="mb-8">
           <div className="flex items-center justify-between mb-4">

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { Calendar, Star, Home, FileText, MessageSquare, ChevronRight, Loader2 } from "lucide-react";
+import { MessageSquare, ChevronRight, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DashboardTabPills } from "@/components/dashboard/DashboardTabPills";
 import { CrmDetailDialog } from "@/components/dashboard/CrmDetailDialog";
@@ -127,23 +127,17 @@ export const BuyerDetailDialog = ({
           </div>
         ) : detailTab === "Overview" ? (
           <div className="space-y-4 animate-in fade-in-0 slide-in-from-bottom-2 duration-300">
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-              {[
-                { icon: Calendar, label: "Tours", value: summary.toursCount },
-                { icon: FileText, label: "Applications", value: summary.applicationsCount },
-                { icon: Home, label: "Properties", value: summary.propertiesCount },
-                { icon: Star, label: "Reviews", value: summary.reviewsCount },
-              ].map((item) => (
-                <div
-                  key={item.label}
-                  className="bg-muted/70 rounded-xl p-4 text-center border border-border/50 transition-colors hover:bg-muted"
-                >
-                  <item.icon className="w-5 h-5 text-primary mx-auto mb-2" />
-                  <div className="text-2xl font-bold text-foreground">{item.value}</div>
-                  <div className="text-xs text-muted-foreground">{item.label}</div>
-                </div>
-              ))}
-            </div>
+            <DashboardTabPills
+              className="mb-2"
+              activeKey=""
+              onChange={(key) => setDetailTab(key as (typeof detailTabs)[number])}
+              tabs={[
+                { key: "Tours", label: "Tours", count: summary.toursCount },
+                { key: "Applications", label: "Applications", count: summary.applicationsCount },
+                { key: "Properties", label: "Properties", count: summary.propertiesCount },
+                { key: "Reviews", label: "Reviews", count: summary.reviewsCount },
+              ]}
+            />
             <div className="flex items-center justify-between rounded-xl border border-green-500/20 bg-green-500/5 p-4">
               <span className="text-sm font-medium text-foreground">Closed deals</span>
               <span className="text-2xl font-bold text-green-700">{summary.closedDeals}</span>

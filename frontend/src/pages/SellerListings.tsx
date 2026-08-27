@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
-import { Home, Plus, Eye, Edit, Trash2, MapPin, Bed, Bath, Maximize, Calendar, DollarSign, TrendingUp, Clock, UserCheck, Megaphone } from "lucide-react";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
+import { Plus, Eye, Edit, Trash2, MapPin, Bed, Bath, Maximize, Calendar, Clock, UserCheck, Megaphone } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { PetPolicyBadge } from "@/components/PetPolicyBadge";
 import { DashboardSidebar } from "./AdminDashboard";
@@ -26,9 +26,10 @@ import { isRentalListing } from "@/features/rentals/lib/rentalFormat";
 
 const SellerListings = () => {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("All");
-  const [listingTypeTab, setListingTypeTab] = useState("all");
+  const listingTypeTab = searchParams.get("type") || "all";
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
 
   const { data, isLoading } = useQuery({
@@ -113,48 +114,69 @@ const SellerListings = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          {[
-            { icon: Home, label: "Total Listings", value: String(allListings.length), change: "Live data" },
-            { icon: Eye, label: "Total Views", value: Number(allListings.reduce((sum, item) => sum + item.views, 0)).toLocaleString(), change: "Live data" },
-            { icon: DollarSign, label: "Total Value", value: `$${totalValue.toLocaleString()}`, change: "Portfolio estimate" },
-            { icon: TrendingUp, label: "Avg. Price", value: allListings.length ? `$${Math.round(totalValue / allListings.length).toLocaleString()}` : "$0", change: "Per listing" },
-          ].map((s) => (
-            <div key={s.label} className="bg-card border border-border rounded-xl p-5">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-3">
-                <s.icon className="w-5 h-5 text-primary" />
-              </div>
-              <div className="text-2xl font-bold text-foreground">{s.value}</div>
-              <div className="text-xs text-muted-foreground">{s.label}</div>
-              <div className="text-xs text-muted-foreground mt-1">{s.change}</div>
-            </div>
-          ))}
-        </div>
+        <DashboardTabPills
+          className="mb-8"
+          activeKey=""
+          onChange={(key) => {
+            if (key === "all") setActiveTab("All");
+            else navigate("/seller/analytics");
+          }}
+          tabs={[
+            { key: "all", label: "Total Listings", count: allListings.length },
+            {
+              key: "views",
+              label: "Total Views",
+              count: Number(allListings.reduce((sum, item) => sum + item.views, 0)).toLocaleString(),
+              href: "/seller/analytics",
+            },
+            {
+              key: "price",
+              label: "Total Value",
+              count: `$${totalValue.toLocaleString()}`,
+              href: "/seller/analytics",
+            },
+            {
+              key: "avg",
+              label: "Avg. Price",
+              count: allListings.length
+                ? `$${Math.round(totalValue / allListings.length).toLocaleString()}`
+                : "$0",
+              href: "/seller/analytics",
+            },
+          ]}
+        />
 
         <DashboardTabPills
           variant="card"
           tabs={listingTypeTabs(allListings.length, saleCount, rentCount)}
           activeKey={listingTypeTab}
-          onChange={setListingTypeTab}
+          onChange={(key) => setSearchParams(key === "all" ? {} : { type: key }, { replace: true })}
           className="mb-6"
         />
 
-        <div className="flex items-center gap-2 mb-6">
-          {["All", "Active", "Pending Review", "Draft"].map((tab) => (
-            <button
-              key={tab}
-              type="button"
-              onClick={() => setActiveTab(tab)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                tab === activeTab
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-card border border-border text-foreground hover:bg-muted"
-              }`}
-            >
-              {tab}
-            </button>
-          ))}
-        </div>
+        <DashboardTabPills
+          className="mb-6"
+          activeKey={activeTab}
+          onChange={setActiveTab}
+          tabs={[
+            { key: "All", label: "All", count: typeFiltered.length },
+            {
+              key: "Active",
+              label: "Active",
+              count: typeFiltered.filter((listing) => listing.status === "Active").length,
+            },
+            {
+              key: "Pending Review",
+              label: "Pending Review",
+              count: typeFiltered.filter((listing) => listing.status === "Pending Review").length,
+            },
+            {
+              key: "Draft",
+              label: "Draft",
+              count: typeFiltered.filter((listing) => listing.status === "Draft").length,
+            },
+          ]}
+        />
 
         <div className="space-y-4">
           {isLoading ? <p className="text-sm text-muted-foreground">Loading listings...</p> : null}

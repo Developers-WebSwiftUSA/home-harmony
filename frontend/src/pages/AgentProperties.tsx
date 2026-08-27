@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { DashboardSidebar } from "./AdminDashboard";
 import { propertyService } from "@/services/property.service";
@@ -10,7 +10,8 @@ import property1 from "@/assets/property-1.jpg";
 import { PropertyViewershipControl } from "@/components/PropertyViewershipControl";
 
 const AgentProperties = () => {
-  const [listingTypeTab, setListingTypeTab] = useState("all");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const listingTypeTab = searchParams.get("type") || "all";
   const [statusTab, setStatusTab] = useState("All");
 
   const { data, isLoading } = useQuery({
@@ -47,15 +48,35 @@ const AgentProperties = () => {
           variant="card"
           tabs={listingTypeTabs(properties.length, saleCount, rentCount)}
           activeKey={listingTypeTab}
-          onChange={setListingTypeTab}
+          onChange={(key) => setSearchParams(key === "all" ? {} : { type: key }, { replace: true })}
           className="mb-6"
         />
 
         <DashboardTabPills
-          tabs={["All", "Active", "Pending Review", "Draft", "Sold", "Rented"].map((tab) => ({
-            key: tab,
-            label: tab,
-          }))}
+          tabs={[
+            { key: "All", label: "All", count: properties.length },
+            {
+              key: "Active",
+              label: "Active",
+              count: properties.filter((p) => p.status === "active").length,
+            },
+            {
+              key: "Pending Review",
+              label: "Pending Review",
+              count: properties.filter((p) => p.status === "pending").length,
+            },
+            {
+              key: "Draft",
+              label: "Draft",
+              count: properties.filter((p) => p.status === "draft").length,
+            },
+            { key: "Sold", label: "Sold", count: properties.filter((p) => p.status === "sold").length },
+            {
+              key: "Rented",
+              label: "Rented",
+              count: properties.filter((p) => p.status === "rented").length,
+            },
+          ]}
           activeKey={statusTab}
           onChange={setStatusTab}
           className="mb-6"

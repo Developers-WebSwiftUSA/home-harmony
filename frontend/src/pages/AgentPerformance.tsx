@@ -1,8 +1,8 @@
 import { useQuery } from "@tanstack/react-query";
-import { BarChart3, Star, Calendar, Home } from "lucide-react";
 import { DashboardSidebar } from "./AdminDashboard";
 import { analyticsService } from "@/services/analytics.service";
 import { useAuth } from "@/context/AuthContext";
+import { DashboardTabPills } from "@/components/dashboard/DashboardTabPills";
 
 const AgentPerformance = () => {
   const { isAuthenticated } = useAuth();
@@ -14,7 +14,6 @@ const AgentPerformance = () => {
 
   const analytics = data?.data;
   const maxTours = Math.max(...(analytics?.toursByMonth.map((m) => m.tours) || [1]), 1);
-  const overviewIcons = [Home, Calendar, Calendar, Calendar];
 
   return (
     <div className="min-h-screen bg-muted flex">
@@ -27,40 +26,34 @@ const AgentPerformance = () => {
           <p className="text-sm text-muted-foreground">Loading performance data...</p>
         ) : analytics ? (
           <div className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-              {analytics.overview.map((stat, index) => {
-                const Icon = overviewIcons[index] || BarChart3;
-                return (
-                  <div key={stat.label} className="bg-card border border-border rounded-xl p-5">
-                    <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-3">
-                      <Icon className="w-5 h-5 text-primary" />
-                    </div>
-                    <div className="text-2xl font-bold text-foreground">{stat.value.toLocaleString()}</div>
-                    <div className="text-xs text-muted-foreground">{stat.label}</div>
-                  </div>
-                );
-              })}
-            </div>
+            <DashboardTabPills
+              activeKey=""
+              tabs={analytics.overview.map((stat) => ({
+                key: stat.label,
+                label: stat.label,
+                count: stat.value.toLocaleString(),
+                href: "/agent/tours",
+              }))}
+            />
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-card border border-border rounded-xl p-5">
-                <p className="text-xs text-muted-foreground mb-1">Total Tours</p>
-                <p className="text-2xl font-bold text-foreground">{analytics.totals.tours}</p>
-              </div>
-              <div className="bg-card border border-border rounded-xl p-5">
-                <div className="flex items-center gap-2 mb-1">
-                  <Star className="w-4 h-4 text-yellow-500" />
-                  <p className="text-xs text-muted-foreground">Average Rating</p>
-                </div>
-                <p className="text-2xl font-bold text-foreground">
-                  {analytics.totals.averageRating > 0 ? analytics.totals.averageRating.toFixed(1) : "—"}
-                </p>
-              </div>
-              <div className="bg-card border border-border rounded-xl p-5">
-                <p className="text-xs text-muted-foreground mb-1">Customer Reviews</p>
-                <p className="text-2xl font-bold text-foreground">{analytics.totals.reviews}</p>
-              </div>
-            </div>
+            <DashboardTabPills
+              activeKey=""
+              tabs={[
+                { key: "tours", label: "Total Tours", count: analytics.totals.tours, href: "/agent/tours" },
+                {
+                  key: "agent",
+                  label: "Average Rating",
+                  count: analytics.totals.averageRating > 0 ? analytics.totals.averageRating.toFixed(1) : "—",
+                  href: "/agent/reviews",
+                },
+                {
+                  key: "reviews",
+                  label: "Customer Reviews",
+                  count: analytics.totals.reviews,
+                  href: "/agent/reviews",
+                },
+              ]}
+            />
 
             <div className="bg-card border border-border rounded-xl p-6">
               <h2 className="font-heading font-bold text-foreground mb-4">Tours Over Time</h2>

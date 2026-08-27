@@ -1,10 +1,12 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { DashboardSidebar } from "./AdminDashboard";
 import { passwordResetService, PasswordResetRequest } from "@/services/passwordReset.service";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { CheckCircle, XCircle, Clock, Eye, EyeOff, Copy, Mail } from "lucide-react";
+import { liveQueryOptions } from "@/lib/liveQuery";
+import { DashboardTabPills } from "@/components/dashboard/DashboardTabPills";
 
 const AdminPasswordResets = () => {
   const queryClient = useQueryClient();
@@ -12,21 +14,29 @@ const AdminPasswordResets = () => {
   const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
 
   const { data, isLoading } = useQuery({
-    queryKey: ["admin-password-resets", filterStatus],
-    queryFn: () => passwordResetService.list(filterStatus || undefined),
+    queryKey: ["admin-password-resets"],
+    queryFn: () => passwordResetService.list(),
+    ...liveQueryOptions,
   });
 
-  const requests: PasswordResetRequest[] = data?.data || [];
+  const allRequests: PasswordResetRequest[] = data?.data || [];
+  const requests = useMemo(() => {
+    if (!filterStatus) return allRequests;
+    return allRequests.filter((request) => request.status === filterStatus);
+  }, [allRequests, filterStatus]);
 
   const approveMutation = useMutation({
     mutationFn: (id: string) => passwordResetService.approve(id),
-    onSuccess: (data) => {
-      toast.success("Password reset approved. New password sent to user.");
-      if (data.data?.newPassword) {
+    onSuccess: (response) => {
+      toast.success(response.message || "Password reset approved.");
+      if (response.data?.newPassword) {
         setVisiblePasswords((prev) => ({
           ...prev,
-          [data.data!._id]: true,
+          [response.data!._id]: true,
         }));
+      }
+      if (response.emailSent === false) {
+        toast.info("Email was not sent. Copy the generated password below.");
       }
       queryClient.invalidateQueries({ queryKey: ["admin-password-resets"] });
     },
@@ -75,22 +85,29 @@ const AdminPasswordResets = () => {
           Review and manage password reset requests from users
         </p>
 
-        {/* Filter Tabs */}
-        <div className="flex items-center gap-2 mb-6">
-          {["", "pending", "approved", "rejected"].map((status) => (
-            <button
-              key={status || "all"}
-              onClick={() => setFilterStatus(status)}
-              className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                filterStatus === status
-                  ? "bg-primary text-primary-foreground"
-                  : "bg-card border border-border text-foreground hover:bg-muted"
-              }`}
-            >
-              {status === "" ? "All" : status.charAt(0).toUpperCase() + status.slice(1)}
-            </button>
-          ))}
-        </div>
+        <DashboardTabPills
+          className="mb-6"
+          activeKey={filterStatus || "all"}
+          onChange={(key) => setFilterStatus(key === "all" ? "" : key)}
+          tabs={[
+            { key: "all", label: "All", count: allRequests.length },
+            {
+              key: "pending",
+              label: "Pending",
+              count: allRequests.filter((r) => r.status === "pending").length,
+            },
+            {
+              key: "approved",
+              label: "Approved",
+              count: allRequests.filter((r) => r.status === "approved").length,
+            },
+            {
+              key: "rejected",
+              label: "Rejected",
+              count: allRequests.filter((r) => r.status === "rejected").length,
+            },
+          ]}
+        />
 
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Loading requests...</p>

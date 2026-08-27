@@ -5,7 +5,6 @@ import { generateToken } from '../utils/generateToken.js';
 import { sendEmail } from '../utils/sendEmail.js';
 import { SUPER_ADMIN_EMAIL } from '../config/seed.js';
 import { buildDefaultAvatar, formatAuthUser } from '../utils/formatAuthUser.js';
-import crypto from 'crypto';
 
 // @desc    Register user
 // @route   POST /api/auth/register
@@ -97,8 +96,10 @@ export const login = asyncHandler(async (req, res) => {
     });
   }
 
+  const normalizedEmail = String(email || "").toLowerCase().trim();
+
   // Check for user
-  const user = await User.findOne({ email }).select('+password');
+  const user = await User.findOne({ email: normalizedEmail }).select('+password');
 
   if (!user) {
     return res.status(401).json({
@@ -125,9 +126,8 @@ export const login = asyncHandler(async (req, res) => {
     });
   }
 
-  // Update last login
-  user.lastLogin = new Date();
-  await user.save();
+  // Update last login without re-saving the password hash
+  await User.updateOne({ _id: user._id }, { $set: { lastLogin: new Date() } });
 
   // Generate token
   const token = generateToken(user._id);
@@ -191,30 +191,43 @@ export const updatePassword = asyncHandler(async (req, res) => {
 // @access  Public
 export const forgotPassword = asyncHandler(async (req, res) => {
   const { email, reason } = req.body;
+  const normalizedEmail = String(email || "").toLowerCase().trim();
 
-  const user = await User.findOne({ email });
+  if (!normalizedEmail) {
+    return res.status(400).json({
+      success: false,
+      message: 'Please provide an email address'
+    });
+  }
+
+  const user = await User.findOne({ email: normalizedEmail });
 
   if (!user) {
     return res.status(404).json({
       success: false,
-      message: 'User not found'
+      message: 'No account found with that email'
     });
   }
 
-  // Check if there's already a pending request
   const existingRequest = await PasswordResetRequest.findOne({
     userId: user._id,
     status: 'pending'
   });
 
   if (existingRequest) {
-    return res.status(400).json({
-      success: false,
-      message: 'You already have a pending password reset request. Please wait for admin approval.'
+    existingRequest.reason = reason || existingRequest.reason;
+    existingRequest.requestedAt = new Date();
+    await existingRequest.save();
+
+    return res.status(200).json({
+      success: true,
+      message: 'Your password reset request is already pending admin review.',
+      data: {
+        requestId: existingRequest._id
+      }
     });
   }
 
-  // Create password reset request
   const resetRequest = await PasswordResetRequest.create({
     userId: user._id,
     email: user.email,

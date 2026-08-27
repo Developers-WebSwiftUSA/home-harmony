@@ -1,11 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { Eye, Calendar, DollarSign, Users, ArrowUp, ArrowDown } from "lucide-react";
 import { DashboardSidebar } from "./AdminDashboard";
 import { analyticsService } from "@/services/analytics.service";
 import { useAuth } from "@/context/AuthContext";
-import { formatOverviewValue, getTrend } from "@/lib/analyticsDisplay";
-
-const overviewIcons = [Eye, Users, Calendar, DollarSign];
+import { formatOverviewValue } from "@/lib/analyticsDisplay";
+import { DashboardTabPills } from "@/components/dashboard/DashboardTabPills";
 
 const SellerAnalytics = () => {
   const { isAuthenticated } = useAuth();
@@ -34,49 +32,47 @@ const SellerAnalytics = () => {
           <p className="text-sm text-muted-foreground">Loading analytics...</p>
         ) : analytics ? (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              {analytics.overview.map((stat, index) => {
-                const Icon = overviewIcons[index] || Eye;
-                const { trend, label } = getTrend(stat.change);
-                return (
-                  <div key={stat.label} className="bg-card border border-border rounded-xl p-5">
-                    <div className="flex items-center justify-between mb-3">
-                      <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
-                        <Icon className="w-5 h-5 text-primary" />
-                      </div>
-                      {stat.change !== undefined && stat.change !== 0 && (
-                        <div
-                          className={`flex items-center gap-1 text-xs font-medium ${
-                            trend === "up" ? "text-green-600" : "text-red-600"
-                          }`}
-                        >
-                          {trend === "up" ? <ArrowUp className="w-3 h-3" /> : <ArrowDown className="w-3 h-3" />}
-                          {label}
-                        </div>
-                      )}
-                    </div>
-                    <div className="text-2xl font-bold text-foreground mb-1">
-                      {formatOverviewValue(stat)}
-                    </div>
-                    <div className="text-xs text-muted-foreground">{stat.label}</div>
-                  </div>
-                );
-              })}
-            </div>
+            <DashboardTabPills
+              className="mb-8"
+              activeKey=""
+              tabs={analytics.overview.map((stat) => ({
+                key: stat.label,
+                label: stat.label,
+                count: formatOverviewValue(stat),
+                href: "/seller/listings",
+              }))}
+            />
 
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
-              {[
-                { label: "Active", value: analytics.listingBreakdown.active },
-                { label: "Pending", value: analytics.listingBreakdown.pending },
-                { label: "Sold", value: analytics.listingBreakdown.sold },
-                { label: "Rented", value: analytics.listingBreakdown.rented },
-              ].map((item) => (
-                <div key={item.label} className="bg-card border border-border rounded-xl p-4 text-center">
-                  <div className="text-xl font-bold text-foreground">{item.value}</div>
-                  <div className="text-xs text-muted-foreground">{item.label} Listings</div>
-                </div>
-              ))}
-            </div>
+            <DashboardTabPills
+              className="mb-8"
+              activeKey=""
+              tabs={[
+                {
+                  key: "active",
+                  label: "Active Listings",
+                  count: analytics.listingBreakdown.active,
+                  href: "/seller/listings",
+                },
+                {
+                  key: "pending",
+                  label: "Pending Listings",
+                  count: analytics.listingBreakdown.pending,
+                  href: "/seller/listings",
+                },
+                {
+                  key: "sold",
+                  label: "Sold Listings",
+                  count: analytics.listingBreakdown.sold,
+                  href: "/seller/listings",
+                },
+                {
+                  key: "rented",
+                  label: "Rented Listings",
+                  count: analytics.listingBreakdown.rented,
+                  href: "/seller/listings",
+                },
+              ]}
+            />
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
               <div className="bg-card border border-border rounded-xl p-6">

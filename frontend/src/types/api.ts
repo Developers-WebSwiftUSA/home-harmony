@@ -8,6 +8,7 @@ export type ApiResponse<T> = {
   pages?: number;
   unreadCount?: number;
   statusCounts?: Record<string, number>;
+  emailSent?: boolean;
 };
 
 export class ApiError extends Error {

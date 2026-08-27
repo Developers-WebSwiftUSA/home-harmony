@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Megaphone,
@@ -8,6 +9,9 @@ import {
   CreditCard,
   Clock,
   StopCircle,
+  ArrowLeft,
+  Download,
+  Receipt,
 } from "lucide-react";
 import { DashboardSidebar } from "./AdminDashboard";
 import { Button } from "@/components/ui/button";
@@ -19,16 +23,26 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { DashboardTabPills } from "@/components/dashboard/DashboardTabPills";
 import { adCampaignService } from "@/services/adCampaign.service";
 import {
   formatAdTypeLabel,
   formatCampaignPeriod,
   formatCurrency,
 } from "@/features/ads/lib/promotionDisplay";
+import {
+  getBillingCustomerKey,
+  getCampaignProperty,
+  getCampaignPropertyTitle,
+  getChargedPayments,
+  getCustomerLabel,
+  getCustomerLifetimeTotal,
+  getCustomerPayments,
+  invoiceNumber,
+  isChargedPayment,
+} from "@/features/ads/lib/campaignBilling";
+import { downloadCampaignInvoicePdf } from "@/features/ads/lib/invoicePdf";
 import { AdCampaign, AdCampaignStatus } from "@/features/ads/types/adCampaign.types";
-import { Property } from "@/types/models";
-import { getDisplayName } from "@/lib/userDisplay";
+import { liveQueryOptions } from "@/lib/liveQuery";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -40,39 +54,111 @@ const statusStyles: Record<AdCampaignStatus, string> = {
   cancelled: "bg-muted text-muted-foreground",
 };
 
-const tabs = [
-  { key: "pending", label: "Pending review" },
-  { key: "active", label: "Active" },
-  { key: "all", label: "All" },
-];
+type PillKey = "all" | "pending" | "active" | "revenue";
 
-const getPropertyFromCampaign = (campaign: AdCampaign): Property | null => {
-  if (!campaign.propertyId || typeof campaign.propertyId === "string") return null;
-  return campaign.propertyId;
+const formatBillDate = (value?: string) => {
+  if (!value) return "—";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+  return date.toLocaleString();
 };
 
 const AdminAdCampaigns = () => {
   const queryClient = useQueryClient();
-  const [tab, setTab] = useState("pending");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const statusFilter = (searchParams.get("status") as PillKey) || "all";
+  const customerKey = searchParams.get("customer") || "";
+  const billId = searchParams.get("bill") || "";
   const [selectedCampaign, setSelectedCampaign] = useState<AdCampaign | null>(null);
   const [adminNotes, setAdminNotes] = useState("");
   const [rejectionReason, setRejectionReason] = useState("");
   const [reviewMode, setReviewMode] = useState<"approve" | "reject" | null>(null);
 
-  const queryParams = useMemo(() => (tab === "all" ? {} : { status: tab }), [tab]);
-
   const { data, isLoading } = useQuery({
-    queryKey: ["admin-ad-campaigns", queryParams],
-    queryFn: () => adCampaignService.list({ ...queryParams, limit: 100 }),
-  });
-
-  const { data: allData } = useQuery({
-    queryKey: ["admin-ad-campaigns", "summary"],
-    queryFn: () => adCampaignService.list({ limit: 100 }),
+    queryKey: ["admin-ad-campaigns"],
+    queryFn: () => adCampaignService.list({ limit: 1000 }),
+    ...liveQueryOptions,
   });
 
   const campaigns = data?.data || [];
-  const allCampaigns = allData?.data || [];
+  const payments = useMemo(() => getChargedPayments(campaigns), [campaigns]);
+  const customerPayments = useMemo(
+    () => getCustomerPayments(campaigns, customerKey),
+    [campaigns, customerKey]
+  );
+  const selectedBill =
+    customerPayments.find((campaign) => campaign._id === billId) || customerPayments[0] || null;
+
+  const stats = {
+    all: campaigns.length,
+    pending: campaigns.filter((campaign) => campaign.status === "pending").length,
+    active: campaigns.filter((campaign) => campaign.status === "active").length,
+    revenue: getCustomerLifetimeTotal(payments),
+  };
+
+  const visibleCampaigns = useMemo(() => {
+    if (statusFilter === "all" || statusFilter === "revenue") return campaigns;
+    return campaigns.filter((campaign) => campaign.status === statusFilter);
+  }, [campaigns, statusFilter]);
+
+  const pills: { key: PillKey; label: string; value: string; className: string; valueClass: string }[] = [
+    {
+      key: "all",
+      label: "Total requests",
+      value: String(stats.all),
+      className: "bg-card border border-border",
+      valueClass: "text-foreground",
+    },
+    {
+      key: "pending",
+      label: "Pending",
+      value: String(stats.pending),
+      className: "bg-yellow-500/10 border border-yellow-500/20",
+      valueClass: "text-yellow-600",
+    },
+    {
+      key: "active",
+      label: "Active",
+      value: String(stats.active),
+      className: "bg-green-500/10 border border-green-500/20",
+      valueClass: "text-green-600",
+    },
+    {
+      key: "revenue",
+      label: "Revenue",
+      value: formatCurrency(stats.revenue),
+      className: "bg-purple-500/10 border border-purple-500/20",
+      valueClass: "text-purple-600",
+    },
+  ];
+
+  const setStatusFilter = (value: PillKey) => {
+    const next = new URLSearchParams();
+    if (value !== "all") next.set("status", value);
+    setSearchParams(next, { replace: true });
+  };
+
+  const openCustomerBilling = (campaign: AdCampaign) => {
+    const next = new URLSearchParams();
+    next.set("status", "revenue");
+    next.set("customer", getBillingCustomerKey(campaign));
+    next.set("bill", campaign._id);
+    setSearchParams(next, { replace: true });
+  };
+
+  const selectBill = (campaign: AdCampaign) => {
+    const next = new URLSearchParams(searchParams);
+    next.set("status", "revenue");
+    next.set("customer", getBillingCustomerKey(campaign));
+    next.set("bill", campaign._id);
+    setSearchParams(next, { replace: true });
+  };
+
+  const backToPayments = () => {
+    const next = new URLSearchParams();
+    next.set("status", "revenue");
+    setSearchParams(next, { replace: true });
+  };
 
   const approveMutation = useMutation({
     mutationFn: (id: string) => adCampaignService.approve(id, adminNotes || undefined),
@@ -125,6 +211,273 @@ const AdminAdCampaigns = () => {
     setRejectionReason("");
   };
 
+  const handleDownloadInvoice = (campaign: AdCampaign) => {
+    try {
+      downloadCampaignInvoicePdf(campaign);
+      toast.success("Invoice PDF downloaded");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not generate invoice PDF");
+    }
+  };
+
+  const renderCampaignList = (list: AdCampaign[]) => {
+    if (list.length === 0) {
+      return (
+        <div className="bg-card border border-dashed border-border rounded-xl p-12 text-center text-muted-foreground">
+          No campaigns in this view.
+        </div>
+      );
+    }
+
+    return (
+      <div className="space-y-4">
+        {list.map((campaign) => {
+          const property = getCampaignProperty(campaign);
+          return (
+            <div key={campaign._id} className="bg-card border border-border rounded-xl p-5">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-center gap-2 mb-2">
+                    <span className={cn("text-[11px] font-semibold px-2.5 py-1 rounded-full capitalize", statusStyles[campaign.status])}>
+                      {campaign.status}
+                    </span>
+                    <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-primary/10 text-primary">
+                      {formatAdTypeLabel(campaign.adType)}
+                    </span>
+                  </div>
+                  <h3 className="font-heading font-bold text-foreground">{property?.title || "Property"}</h3>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Requested by {getCustomerLabel(campaign)} · {campaign.requesterRole}
+                  </p>
+                  <div className="flex flex-wrap gap-4 mt-3 text-xs text-muted-foreground">
+                    <span className="inline-flex items-center gap-1">
+                      <Clock className="w-3.5 h-3.5" />
+                      {campaign.durationDays} days
+                    </span>
+                    <span className="inline-flex items-center gap-1">
+                      <CreditCard className="w-3.5 h-3.5" />
+                      {formatCurrency(campaign.totalAmount)}
+                    </span>
+                    {campaign.payment && (
+                      <span>
+                        •••• {campaign.payment.cardLast4} · {campaign.payment.billingEmail}
+                      </span>
+                    )}
+                  </div>
+                  {campaign.status === "active" && (
+                    <p className="text-xs text-muted-foreground mt-2">
+                      Live: {formatCampaignPeriod(campaign.startDate, campaign.endDate)}
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  {isChargedPayment(campaign) && (
+                    <Button size="sm" variant="outline" className="gap-1" onClick={() => openCustomerBilling(campaign)}>
+                      <Receipt className="w-4 h-4" />
+                      Billing
+                    </Button>
+                  )}
+                  {campaign.status === "pending" && (
+                    <>
+                      <Button size="sm" className="gap-1" onClick={() => openReview(campaign, "approve")}>
+                        <CheckCircle2 className="w-4 h-4" />
+                        Approve & charge
+                      </Button>
+                      <Button size="sm" variant="outline" className="gap-1" onClick={() => openReview(campaign, "reject")}>
+                        <XCircle className="w-4 h-4" />
+                        Reject
+                      </Button>
+                    </>
+                  )}
+                  {campaign.status === "active" && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1"
+                      onClick={() => endMutation.mutate(campaign._id)}
+                      disabled={endMutation.isPending}
+                    >
+                      <StopCircle className="w-4 h-4" />
+                      End early
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
+
+  const renderPayments = () => {
+    if (payments.length === 0) {
+      return (
+        <div className="bg-card border border-dashed border-border rounded-xl p-12 text-center text-muted-foreground">
+          No payments have been charged yet.
+        </div>
+      );
+    }
+
+    return (
+      <div className="bg-card border border-border rounded-xl overflow-hidden">
+        <div className="px-5 py-4 border-b border-border">
+          <h2 className="font-heading font-bold text-foreground">Payments</h2>
+          <p className="text-xs text-muted-foreground mt-1">
+            Every charged promotion. Click a customer to open their billing history.
+          </p>
+        </div>
+        <div className="divide-y divide-border">
+          {payments.map((campaign) => (
+            <button
+              key={campaign._id}
+              type="button"
+              onClick={() => openCustomerBilling(campaign)}
+              className="w-full text-left px-5 py-4 hover:bg-muted/60 transition-colors"
+            >
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-medium text-foreground">{getCustomerLabel(campaign)}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    {campaign.payment?.billingEmail || "No billing email"} · {getCampaignPropertyTitle(campaign)}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="font-semibold text-foreground">{formatCurrency(Number(campaign.chargedAmount || 0))}</p>
+                  <p className="text-xs text-muted-foreground">{formatBillDate(campaign.chargedAt)}</p>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  };
+
+  const renderBillingHistory = () => {
+    if (!selectedBill) {
+      return (
+        <div className="bg-card border border-dashed border-border rounded-xl p-12 text-center text-muted-foreground">
+          No billing history for this customer.
+        </div>
+      );
+    }
+
+    const lifetime = getCustomerLifetimeTotal(customerPayments);
+
+    return (
+      <div className="space-y-4">
+        <button
+          type="button"
+          onClick={backToPayments}
+          className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+        >
+          <ArrowLeft className="w-4 h-4" /> Back to payments
+        </button>
+
+        <div className="bg-card border border-border rounded-xl p-5">
+          <p className="text-xs uppercase tracking-wide text-muted-foreground">Customer</p>
+          <h2 className="text-xl font-heading font-bold text-foreground mt-1">{getCustomerLabel(selectedBill)}</h2>
+          <p className="text-sm text-muted-foreground">{selectedBill.payment?.billingEmail}</p>
+          <div className="flex flex-wrap gap-6 mt-4">
+            <div>
+              <p className="text-xs text-muted-foreground">Lifetime billed</p>
+              <p className="text-lg font-bold text-foreground">{formatCurrency(lifetime)}</p>
+            </div>
+            <div>
+              <p className="text-xs text-muted-foreground">Payments</p>
+              <p className="text-lg font-bold text-foreground">{customerPayments.length}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="bg-card border border-border rounded-xl p-5">
+          <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+            <div>
+              <p className="text-xs uppercase tracking-wide text-muted-foreground">Bill details</p>
+              <h3 className="font-heading font-bold text-foreground mt-1">{invoiceNumber(selectedBill._id)}</h3>
+            </div>
+            <Button className="gap-2" onClick={() => handleDownloadInvoice(selectedBill)}>
+              <Download className="w-4 h-4" />
+              Download invoice PDF
+            </Button>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+            <p>
+              <span className="text-muted-foreground">Listing: </span>
+              {getCampaignPropertyTitle(selectedBill)}
+            </p>
+            <p>
+              <span className="text-muted-foreground">Promotion: </span>
+              {formatAdTypeLabel(selectedBill.adType)} · {selectedBill.durationDays} days
+            </p>
+            <p>
+              <span className="text-muted-foreground">Charged: </span>
+              {formatCurrency(Number(selectedBill.chargedAmount || 0))} on {formatBillDate(selectedBill.chargedAt)}
+            </p>
+            <p>
+              <span className="text-muted-foreground">Period: </span>
+              {formatCampaignPeriod(selectedBill.startDate, selectedBill.endDate)}
+            </p>
+            <p>
+              <span className="text-muted-foreground">Card: </span>
+              {selectedBill.payment?.cardBrand || "Card"} •••• {selectedBill.payment?.cardLast4}
+            </p>
+            <p>
+              <span className="text-muted-foreground">Billed to: </span>
+              {selectedBill.payment?.cardHolderName}
+            </p>
+            {selectedBill.payment?.billingAddress && (
+              <p className="md:col-span-2">
+                <span className="text-muted-foreground">Address: </span>
+                {selectedBill.payment.billingAddress}
+              </p>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-card border border-border rounded-xl overflow-hidden">
+          <div className="px-5 py-4 border-b border-border">
+            <h3 className="font-heading font-bold text-foreground">Billing history</h3>
+            <p className="text-xs text-muted-foreground mt-1">All charged campaigns for this customer.</p>
+          </div>
+          <div className="divide-y divide-border">
+            {customerPayments.map((campaign) => {
+              const isSelected = campaign._id === selectedBill._id;
+              return (
+                <button
+                  key={campaign._id}
+                  type="button"
+                  onClick={() => selectBill(campaign)}
+                  className={cn(
+                    "w-full text-left px-5 py-4 transition-colors",
+                    isSelected ? "bg-primary/5" : "hover:bg-muted/60"
+                  )}
+                >
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                      <p className="font-medium text-foreground">{getCampaignPropertyTitle(campaign)}</p>
+                      <p className="text-xs text-muted-foreground mt-0.5">
+                        {invoiceNumber(campaign._id)} · {formatAdTypeLabel(campaign.adType)}
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold text-foreground">
+                        {formatCurrency(Number(campaign.chargedAmount || 0))}
+                      </p>
+                      <p className="text-xs text-muted-foreground">{formatBillDate(campaign.chargedAt)}</p>
+                    </div>
+                  </div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   return (
     <div className="min-h-screen bg-muted flex">
       <DashboardSidebar active="Ad Campaigns" role="admin" />
@@ -136,111 +489,44 @@ const AdminAdCampaigns = () => {
             Ad Campaigns
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Review promotion requests, approve billing, and manage live sponsored listings.
+            Review promotion requests, click a status to filter, and open charged payments from Revenue.
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-          {[
-            { label: "Pending", value: allCampaigns.filter((c) => c.status === "pending").length },
-            { label: "Active", value: allCampaigns.filter((c) => c.status === "active").length },
-            {
-              label: "Revenue",
-              value: formatCurrency(allCampaigns.reduce((sum, c) => sum + Number(c.chargedAmount || 0), 0)),
-            },
-            { label: "Total requests", value: allCampaigns.length },
-          ].map((stat) => (
-            <div key={stat.label} className="bg-card border border-border rounded-xl p-5">
-              <p className="text-xs uppercase tracking-wide text-muted-foreground">{stat.label}</p>
-              <p className="text-2xl font-bold text-foreground mt-2">{stat.value}</p>
-            </div>
-          ))}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+          {pills.map((pill) => {
+            const isSelected = statusFilter === pill.key;
+            return (
+              <button
+                key={pill.key}
+                type="button"
+                onClick={() => setStatusFilter(pill.key)}
+                className={cn(
+                  "rounded-xl p-4 text-left transition-all cursor-pointer hover:opacity-90 border",
+                  pill.className,
+                  isSelected && "ring-2 ring-primary ring-offset-2 ring-offset-muted"
+                )}
+              >
+                <div className={cn("text-2xl font-bold", pill.valueClass)}>{pill.value}</div>
+                <div className={cn("text-sm", pill.valueClass === "text-foreground" ? "text-muted-foreground" : pill.valueClass)}>
+                  {pill.label}
+                </div>
+              </button>
+            );
+          })}
         </div>
-
-        <DashboardTabPills tabs={tabs} activeKey={tab} onChange={setTab} className="mb-6" />
 
         {isLoading ? (
           <div className="py-16 flex items-center justify-center text-muted-foreground">
             <Loader2 className="w-6 h-6 animate-spin mr-2" />
             Loading campaigns...
           </div>
-        ) : campaigns.length === 0 ? (
-          <div className="bg-card border border-dashed border-border rounded-xl p-12 text-center text-muted-foreground">
-            No campaigns in this view.
-          </div>
+        ) : statusFilter === "revenue" && customerKey ? (
+          renderBillingHistory()
+        ) : statusFilter === "revenue" ? (
+          renderPayments()
         ) : (
-          <div className="space-y-4">
-            {campaigns.map((campaign) => {
-              const property = getPropertyFromCampaign(campaign);
-              return (
-                <div key={campaign._id} className="bg-card border border-border rounded-xl p-5">
-                  <div className="flex flex-wrap items-start justify-between gap-4">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex flex-wrap items-center gap-2 mb-2">
-                        <span className={cn("text-[11px] font-semibold px-2.5 py-1 rounded-full capitalize", statusStyles[campaign.status])}>
-                          {campaign.status}
-                        </span>
-                        <span className="text-[11px] font-semibold px-2.5 py-1 rounded-full bg-primary/10 text-primary">
-                          {formatAdTypeLabel(campaign.adType)}
-                        </span>
-                      </div>
-                      <h3 className="font-heading font-bold text-foreground">{property?.title || "Property"}</h3>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Requested by {getDisplayName(campaign.requesterId)} · {campaign.requesterRole}
-                      </p>
-                      <div className="flex flex-wrap gap-4 mt-3 text-xs text-muted-foreground">
-                        <span className="inline-flex items-center gap-1">
-                          <Clock className="w-3.5 h-3.5" />
-                          {campaign.durationDays} days
-                        </span>
-                        <span className="inline-flex items-center gap-1">
-                          <CreditCard className="w-3.5 h-3.5" />
-                          {formatCurrency(campaign.totalAmount)}
-                        </span>
-                        {campaign.payment && (
-                          <span>
-                            •••• {campaign.payment.cardLast4} · {campaign.payment.billingEmail}
-                          </span>
-                        )}
-                      </div>
-                      {campaign.status === "active" && (
-                        <p className="text-xs text-muted-foreground mt-2">
-                          Live: {formatCampaignPeriod(campaign.startDate, campaign.endDate)}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
-                      {campaign.status === "pending" && (
-                        <>
-                          <Button size="sm" className="gap-1" onClick={() => openReview(campaign, "approve")}>
-                            <CheckCircle2 className="w-4 h-4" />
-                            Approve & charge
-                          </Button>
-                          <Button size="sm" variant="outline" className="gap-1" onClick={() => openReview(campaign, "reject")}>
-                            <XCircle className="w-4 h-4" />
-                            Reject
-                          </Button>
-                        </>
-                      )}
-                      {campaign.status === "active" && (
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="gap-1"
-                          onClick={() => endMutation.mutate(campaign._id)}
-                          disabled={endMutation.isPending}
-                        >
-                          <StopCircle className="w-4 h-4" />
-                          End early
-                        </Button>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          renderCampaignList(visibleCampaigns)
         )}
       </main>
 

@@ -16,8 +16,8 @@ const ForgotPassword = () => {
     setLoading(true);
 
     try {
-      await passwordResetService.requestReset(email, reason);
-      toast.success("Password reset request submitted successfully");
+      await passwordResetService.requestReset(email.trim(), reason);
+      toast.success("Password reset request submitted. An admin will review it shortly.");
       setSubmitted(true);
     } catch (error: any) {
       toast.error(error?.message || "Failed to submit request");
@@ -49,7 +49,7 @@ const ForgotPassword = () => {
               Request Submitted
             </h1>
             <p className="text-sm text-muted-foreground mb-6">
-              Your password reset request has been submitted successfully. An admin will review your request and you will receive an email with your new password once approved.
+              Your password reset request is with an admin. After they approve it, use the new password they send you (by email if configured, or shared directly) to sign in.
             </p>
             <Link to="/login">
               <Button variant="outline">Back to Login</Button>

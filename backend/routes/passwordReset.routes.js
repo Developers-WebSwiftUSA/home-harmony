@@ -14,8 +14,8 @@ router.use(protect);
 router.use(authorize('admin'));
 
 router.get('/', getPasswordResetRequests);
+router.put('/reset/:userId', adminResetPassword);
 router.put('/:id/approve', approvePasswordReset);
 router.put('/:id/reject', rejectPasswordReset);
-router.put('/reset/:userId', adminResetPassword);
 
 export default router;

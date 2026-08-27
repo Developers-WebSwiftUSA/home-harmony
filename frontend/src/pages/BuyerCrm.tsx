@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import { DashboardSidebar } from "./AdminDashboard";
 import { crmService } from "@/services/crm.service";
 import { DashboardTabPills, marketTabs } from "@/components/dashboard/DashboardTabPills";
@@ -13,7 +14,8 @@ type Props = {
 };
 
 const BuyerCrm = ({ role, sidebarActive, messagePath }: Props) => {
-  const [market, setMarket] = useState<CrmMarket>("sale");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const market = (searchParams.get("market") === "rent" ? "rent" : "sale") as CrmMarket;
   const [selectedBuyerId, setSelectedBuyerId] = useState<string | null>(null);
 
   const { data: saleData } = useQuery({
@@ -58,7 +60,7 @@ const BuyerCrm = ({ role, sidebarActive, messagePath }: Props) => {
           tabs={marketTabs(saleCount, rentCount)}
           activeKey={market}
           onChange={(key) => {
-            setMarket(key as CrmMarket);
+            setSearchParams(key === "sale" ? {} : { market: key }, { replace: true });
             setSelectedBuyerId(null);
           }}
           className="mb-8"

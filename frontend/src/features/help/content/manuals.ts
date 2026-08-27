@@ -240,17 +240,17 @@ export const HELP_MANUALS: Record<string, HelpManual> = {
   "forgot-password": {
     id: "forgot-password",
     title: "Reset Password",
-    summary: "Request a password reset link by email.",
+    summary: "Ask an admin to reset your password.",
     role: "public",
     steps: [
       {
         title: "Submit your email",
-        description: "Enter the email tied to your account and submit the reset request.",
+        description: "Enter the email tied to your account. An admin will review the request.",
         visual: "auth-form",
       },
       {
-        title: "Check admin queue",
-        description: "Admins process reset requests from the Password Resets dashboard section.",
+        title: "Sign in with the new password",
+        description: "After approval, use the new password from email or from your admin. Change it after you sign in.",
       },
     ],
   },
@@ -924,14 +924,18 @@ export const HELP_MANUALS: Record<string, HelpManual> = {
     role: "admin",
     steps: [
       {
-        title: "Pending campaigns",
-        description: "Review promotion requests with listing, duration, and payment info.",
+        title: "Filter campaigns",
+        description: "Use the Total, Pending, Active, and Revenue pills to switch views. Revenue lists every charged payment.",
         visual: "promotion",
       },
       {
         title: "Approve & activate",
         description: "Approve to charge and activate badges. Campaigns auto-expire after the paid period.",
         visual: "table-actions",
+      },
+      {
+        title: "Customer billing",
+        description: "Click a payment to open that customer’s billing history, then download a House Tour Guide letterhead invoice PDF.",
       },
     ],
   },
@@ -1041,7 +1045,7 @@ export const HELP_MANUALS: Record<string, HelpManual> = {
     steps: [
       {
         title: "Reset queue",
-        description: "Approve or deny reset requests submitted from the Forgot Password page.",
+        description: "Approve a pending request to generate a new password. Copy it if email is not configured, then share it with the user.",
         visual: "table-actions",
       },
     ],

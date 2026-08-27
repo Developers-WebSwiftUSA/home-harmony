@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { Home, Calendar, BarChart3, Bell, Plus, Eye, Edit, TrendingUp, DollarSign, Users } from "lucide-react";
+import { Bell, Plus, Edit } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DashboardSidebar } from "./AdminDashboard";
 import { useQuery } from "@tanstack/react-query";
@@ -114,31 +114,31 @@ const SellerDashboard = () => {
           </div>
         </div>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-          {[
+        <DashboardTabPills
+          className="mb-8"
+          activeKey=""
+          tabs={[
             {
-              icon: Home,
+              key: "active",
               label: "Active Listings",
-              value: String(analytics?.listingBreakdown.active ?? listingsLive.length),
+              count: String(analytics?.listingBreakdown.active ?? listingsLive.length),
+              href: "/seller/listings",
             },
-            { icon: Eye, label: "Total Views", value: totalViews.toLocaleString() },
-            { icon: Calendar, label: "Tour Requests", value: String(tourRequestTotal) },
+            { key: "views", label: "Total Views", count: totalViews.toLocaleString(), href: "/seller/analytics" },
             {
-              icon: DollarSign,
-              label: "Avg. Listing Price",
-              value: portfolioValue ? formatOverviewValue(portfolioValue) : "$--",
+              key: "tours",
+              label: "Tour Requests",
+              count: String(tourRequestTotal),
+              href: "/seller/tours",
             },
-          ].map((s) => (
-            <div key={s.label} className="bg-card border border-border rounded-xl p-5">
-              <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-3">
-                <s.icon className="w-5 h-5 text-primary" />
-              </div>
-              <div className="text-2xl font-bold text-foreground">{s.value}</div>
-              <div className="text-xs text-muted-foreground">{s.label}</div>
-            </div>
-          ))}
-        </div>
+            {
+              key: "price",
+              label: "Avg. Listing Price",
+              count: portfolioValue ? formatOverviewValue(portfolioValue) : "$--",
+              href: "/seller/analytics",
+            },
+          ]}
+        />
 
         <div className="mb-8">
           <h2 className="font-heading font-bold text-foreground mb-4">Listings by Type</h2>
@@ -146,7 +146,9 @@ const SellerDashboard = () => {
             variant="card"
             tabs={listingTypeTabs(allProperties.length, saleListingCount, rentListingCount)}
             activeKey="all"
-            onChange={() => navigate("/seller/listings")}
+            onChange={(key) =>
+              navigate(key === "all" ? "/seller/listings" : `/seller/listings?type=${key}`)
+            }
             className="mb-2"
           />
           <Link to="/seller/listings">
@@ -167,7 +169,7 @@ const SellerDashboard = () => {
             variant="card"
             tabs={marketTabs(saleBuyerCount, rentBuyerCount)}
             activeKey="sale"
-            onChange={() => navigate("/seller/buyers")}
+            onChange={(key) => navigate(`/seller/buyers?market=${key}`)}
           />
         </div>
 

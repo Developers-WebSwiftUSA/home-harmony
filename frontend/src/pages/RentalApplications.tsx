@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
 import { Link } from "react-router-dom";
 import { DashboardSidebar } from "./AdminDashboard";
 import { rentalApplicationService } from "@/services/rentalApplication.service";
@@ -9,6 +10,7 @@ import { getPropertyDetailPath } from "@/lib/propertyRoutes";
 import { toast } from "sonner";
 import { formatRentPrice } from "@/features/rentals/lib/rentalFormat";
 import { Mail, Phone, Calendar, MapPin } from "lucide-react";
+import { DashboardTabPills } from "@/components/dashboard/DashboardTabPills";
 
 const statusStyles: Record<RentalApplicationStatus, string> = {
   pending: "bg-yellow-50 text-yellow-700",
@@ -50,6 +52,7 @@ const RentalApplications = ({ mode }: { mode: "buyer" | "seller" | "agent" }) =>
   const { user } = useAuth();
   const config = configs[mode];
   const queryClient = useQueryClient();
+  const [statusFilter, setStatusFilter] = useState("all");
 
   const { data, isLoading } = useQuery({
     queryKey: ["rental-applications", mode],
@@ -75,6 +78,10 @@ const RentalApplications = ({ mode }: { mode: "buyer" | "seller" | "agent" }) =>
   });
 
   const applications = data?.data || [];
+  const visible =
+    statusFilter === "all"
+      ? applications
+      : applications.filter((application) => application.status === statusFilter);
 
   const canManage = mode === "seller" || mode === "agent";
 
@@ -84,6 +91,35 @@ const RentalApplications = ({ mode }: { mode: "buyer" | "seller" | "agent" }) =>
       <main className="flex-1 ml-64 p-8">
         <h1 className="text-2xl font-heading font-bold text-foreground mb-2">{config.title}</h1>
         <p className="text-sm text-muted-foreground mb-6">{config.subtitle}</p>
+
+        <DashboardTabPills
+          className="mb-6"
+          activeKey={statusFilter}
+          onChange={setStatusFilter}
+          tabs={[
+            { key: "all", label: "All", count: applications.length },
+            {
+              key: "pending",
+              label: "Pending",
+              count: applications.filter((a) => a.status === "pending").length,
+            },
+            {
+              key: "reviewing",
+              label: "Reviewing",
+              count: applications.filter((a) => a.status === "reviewing").length,
+            },
+            {
+              key: "approved",
+              label: "Approved",
+              count: applications.filter((a) => a.status === "approved").length,
+            },
+            {
+              key: "rejected",
+              label: "Rejected",
+              count: applications.filter((a) => a.status === "rejected").length,
+            },
+          ]}
+        />
 
         {isLoading ? (
           <p className="text-sm text-muted-foreground">Loading applications...</p>
@@ -101,9 +137,13 @@ const RentalApplications = ({ mode }: { mode: "buyer" | "seller" | "agent" }) =>
               </Button>
             )}
           </div>
+        ) : visible.length === 0 ? (
+          <div className="bg-card border border-border rounded-xl p-12 text-center text-sm text-muted-foreground">
+            No applications in this status.
+          </div>
         ) : (
           <div className="space-y-4">
-            {applications.map((application) => (
+            {visible.map((application) => (
               <ApplicationCard
                 key={application._id}
                 application={application}

@@ -1,47 +1,70 @@
 import nodemailer from 'nodemailer';
 
-// Create transporter (configure with your email service)
+const hasSmtpConfig = () =>
+  Boolean(process.env.SMTP_HOST || process.env.ETHEREAL_USER || process.env.SENDGRID_API_KEY);
+
 const createTransporter = () => {
-  // For development, you can use Ethereal Email or configure with SendGrid
-  if (process.env.NODE_ENV === 'development') {
+  if (process.env.SMTP_HOST) {
+    return nodemailer.createTransport({
+      host: process.env.SMTP_HOST,
+      port: Number(process.env.SMTP_PORT || 587),
+      secure: process.env.SMTP_SECURE === 'true',
+      auth:
+        process.env.SMTP_USER || process.env.SMTP_PASS
+          ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+          : undefined,
+    });
+  }
+
+  if (process.env.ETHEREAL_USER && process.env.ETHEREAL_PASS) {
     return nodemailer.createTransport({
       host: 'smtp.ethereal.email',
       port: 587,
       auth: {
         user: process.env.ETHEREAL_USER,
-        pass: process.env.ETHEREAL_PASS
-      }
+        pass: process.env.ETHEREAL_PASS,
+      },
     });
   }
 
-  // Production: Use SendGrid or other service
-  return nodemailer.createTransport({
-    service: 'SendGrid',
-    auth: {
-      user: 'apikey',
-      pass: process.env.SENDGRID_API_KEY
-    }
-  });
+  if (process.env.SENDGRID_API_KEY) {
+    return nodemailer.createTransport({
+      service: 'SendGrid',
+      auth: {
+        user: 'apikey',
+        pass: process.env.SENDGRID_API_KEY,
+      },
+    });
+  }
+
+  return null;
 };
 
 export const sendEmail = async (options) => {
+  if (!hasSmtpConfig()) {
+    console.warn(`Email skipped (not configured): ${options.subject} -> ${options.email}`);
+    return { skipped: true, sent: false };
+  }
+
   try {
     const transporter = createTransporter();
-    
-    const message = {
-      from: process.env.EMAIL_FROM || 'noreply@realestateplatform.com',
+    if (!transporter) {
+      return { skipped: true, sent: false };
+    }
+
+    const info = await transporter.sendMail({
+      from: process.env.EMAIL_FROM || 'noreply@housetourguide.com',
       to: options.email,
       subject: options.subject,
       text: options.text,
-      html: options.html
-    };
+      html: options.html,
+    });
 
-    const info = await transporter.sendMail(message);
     console.log('Email sent: ', info.messageId);
-    return info;
+    return { skipped: false, sent: true, messageId: info.messageId };
   } catch (error) {
     console.error('Email error: ', error);
-    throw error;
+    return { skipped: false, sent: false, error: error.message };
   }
 };
 

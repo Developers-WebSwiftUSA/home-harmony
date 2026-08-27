@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Users, Calendar, Bell, Home, Star, Target, MapPin, Eye, TrendingUp, KeyRound, CheckCircle2 } from "lucide-react";
+import { Calendar, Bell, Home, MapPin, Eye } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { DashboardSidebar } from "./AdminDashboard";
 import { useQuery } from "@tanstack/react-query";
@@ -13,12 +13,11 @@ import { authService } from "@/services/auth.service";
 import { UserAvatar } from "@/components/UserAvatar";
 import { getDisplayName } from "@/lib/userDisplay";
 import { formatRating, getAgentRating } from "@/lib/ratings";
-import { cn } from "@/lib/utils";
 import property1 from "@/assets/property-1.jpg";
 import { getPropertyDetailPath } from "@/lib/propertyRoutes";
 import { PropertyViewershipControl } from "@/components/PropertyViewershipControl";
 import { Property } from "@/types/models";
-import { AgentCustomerReviews, getAgentReviewTours } from "@/components/AgentCustomerReviews";
+import { AgentCustomerReviews } from "@/components/AgentCustomerReviews";
 import { DashboardTabPills, listingTypeTabs, marketTabs } from "@/components/dashboard/DashboardTabPills";
 import { isRentalListing } from "@/features/rentals/lib/rentalFormat";
 
@@ -93,7 +92,6 @@ const AgentDashboard = () => {
   const tours = toursData?.data || [];
   const completedTours = completedToursData?.data || [];
   const agentUserId = user?._id || user?.id;
-  const reviewCount = getAgentReviewTours(completedTours, agentUserId).length;
   const conversations = conversationsData?.data || [];
   const assignedProperties = propertiesData?.data || [];
   const agentRating = getAgentRating(profileData?.data || user);
@@ -141,24 +139,6 @@ const AgentDashboard = () => {
     () => getProgressStats(assignedProperties),
     [assignedProperties]
   );
-
-  const tabConfig = [
-    { key: "overview" as const, label: "Overview", count: saleBuyerCount + rentBuyerCount, subtitle: "Sale & rental buyers" },
-    { key: "properties" as const, label: "Assigned Properties", count: assignedProperties.length, subtitle: "Your listings" },
-    {
-      key: "progress" as const,
-      label: "Progress",
-      count: progressStats.closedTotal,
-      subtitle: `${reviewCount} review${reviewCount === 1 ? "" : "s"}`,
-    },
-  ];
-
-  const progressCards = [
-    { label: "Assigned Properties", value: progressStats.assigned, icon: Home, color: "text-primary", bg: "bg-primary/10" },
-    { label: "Properties Sold", value: progressStats.sold, icon: CheckCircle2, color: "text-green-600", bg: "bg-green-500/10" },
-    { label: "Properties Rented", value: progressStats.rented, icon: KeyRound, color: "text-blue-600", bg: "bg-blue-500/10" },
-    { label: "Active Listings", value: progressStats.active, icon: TrendingUp, color: "text-yellow-600", bg: "bg-yellow-500/10" },
-  ];
 
   const renderPropertyProgressList = (items: Property[], emptyMessage: string) => {
     if (items.length === 0) {
@@ -216,26 +196,28 @@ const AgentDashboard = () => {
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          {tabConfig.map((tab) => {
-            const isSelected = activeTab === tab.key;
-            return (
-              <button
-                key={tab.key}
-                type="button"
-                onClick={() => setActiveTab(tab.key)}
-                className={cn(
-                  "bg-card border border-border rounded-xl p-5 text-left transition-all hover:opacity-90",
-                  isSelected && "ring-2 ring-primary ring-offset-2 ring-offset-muted"
-                )}
-              >
-                <div className="text-2xl font-bold text-foreground">{tab.count}</div>
-                <div className="text-sm font-medium text-foreground">{tab.label}</div>
-                <div className="text-xs text-muted-foreground mt-1">{tab.subtitle}</div>
-              </button>
-            );
-          })}
-        </div>
+        <DashboardTabPills
+          className="mb-8"
+          activeKey={activeTab}
+          onChange={(key) => setActiveTab(key as DashboardTab)}
+          tabs={[
+            {
+              key: "overview",
+              label: "Overview",
+              count: saleBuyerCount + rentBuyerCount,
+            },
+            {
+              key: "properties",
+              label: "Assigned Properties",
+              count: assignedProperties.length,
+            },
+            {
+              key: "progress",
+              label: "Progress",
+              count: progressStats.closedTotal,
+            },
+          ]}
+        />
 
         {activeTab === "progress" ? (
           <div>
@@ -246,17 +228,36 @@ const AgentDashboard = () => {
               </p>
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-8">
-              {progressCards.map((card) => (
-                <div key={card.label} className="bg-card border border-border rounded-xl p-5">
-                  <div className={`w-10 h-10 rounded-lg ${card.bg} flex items-center justify-center mb-3`}>
-                    <card.icon className={`w-5 h-5 ${card.color}`} />
-                  </div>
-                  <div className="text-2xl font-bold text-foreground">{card.value}</div>
-                  <div className="text-xs text-muted-foreground">{card.label}</div>
-                </div>
-              ))}
-            </div>
+            <DashboardTabPills
+              className="mb-8"
+              activeKey=""
+              tabs={[
+                {
+                  key: "assigned",
+                  label: "Assigned Properties",
+                  count: progressStats.assigned,
+                  href: "/agent/properties",
+                },
+                {
+                  key: "sold",
+                  label: "Properties Sold",
+                  count: progressStats.sold,
+                  href: "/agent/properties",
+                },
+                {
+                  key: "rented",
+                  label: "Properties Rented",
+                  count: progressStats.rented,
+                  href: "/agent/properties",
+                },
+                {
+                  key: "active",
+                  label: "Active Listings",
+                  count: progressStats.active,
+                  href: "/agent/properties",
+                },
+              ]}
+            />
 
             <div className="bg-card border border-border rounded-xl p-6 mb-6">
               <h3 className="font-heading font-bold text-foreground mb-4">Completion Breakdown</h3>
@@ -316,29 +317,40 @@ const AgentDashboard = () => {
           </div>
         ) : activeTab === "overview" ? (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
-              {[
-                { icon: Users, label: "Sale Buyers", value: String(saleBuyerCount) },
-                { icon: Users, label: "Rental Buyers", value: String(rentBuyerCount) },
-                { icon: Home, label: "Assigned Properties", value: String(assignedProperties.length) },
-                { icon: Star, label: "Rating", value: ratingDisplay },
-              ].map((s) => (
-                <div key={s.label} className="bg-card border border-border rounded-xl p-5">
-                  <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center mb-3">
-                    <s.icon className="w-5 h-5 text-primary" />
-                  </div>
-                  <div className="text-2xl font-bold text-foreground">{s.value}</div>
-                  <div className="text-xs text-muted-foreground">{s.label}</div>
-                </div>
-              ))}
-            </div>
+            <DashboardTabPills
+              className="mb-8"
+              activeKey=""
+              tabs={[
+                {
+                  key: "sale",
+                  label: "Sale Buyers",
+                  count: saleBuyerCount,
+                  href: "/agent/clients?market=sale",
+                },
+                {
+                  key: "rent",
+                  label: "Rental Buyers",
+                  count: rentBuyerCount,
+                  href: "/agent/clients?market=rent",
+                },
+                {
+                  key: "properties",
+                  label: "Assigned Properties",
+                  count: assignedProperties.length,
+                  href: "/agent/properties",
+                },
+                { key: "reviews", label: "Rating", count: ratingDisplay, href: "/agent/reviews" },
+              ]}
+            />
 
             <div className="mb-8">
               <DashboardTabPills
                 variant="card"
                 tabs={listingTypeTabs(assignedProperties.length, saleListingCount, rentListingCount)}
                 activeKey="all"
-                onChange={() => navigate("/agent/properties")}
+                onChange={(key) =>
+                  navigate(key === "all" ? "/agent/properties" : `/agent/properties?type=${key}`)
+                }
                 className="mb-2"
               />
               <Link to="/agent/properties">
@@ -379,7 +391,7 @@ const AgentDashboard = () => {
                   variant="card"
                   tabs={marketTabs(saleBuyerCount, rentBuyerCount)}
                   activeKey="sale"
-                  onChange={() => navigate("/agent/clients")}
+                  onChange={(key) => navigate(`/agent/clients?market=${key}`)}
                   className="mb-4"
                 />
                 <div className="space-y-3">

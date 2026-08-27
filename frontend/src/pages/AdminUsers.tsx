@@ -63,17 +63,28 @@ const AdminUsers = () => {
 
   const resetPasswordMutation = useMutation({
     mutationFn: (userId: string) => passwordResetService.adminReset(userId),
-    onSuccess: (data) => {
-      if (data.data?.newPassword) {
-        setResetPasswords((prev) => ({
-          ...prev,
-          [data.data!.userId]: data.data!.newPassword,
-        }));
-        setVisiblePasswords((prev) => ({
-          ...prev,
-          [data.data!.userId]: true,
-        }));
-        toast.success("Password reset. New password generated.");
+    onSuccess: (response, userId) => {
+      const password = response.data?.newPassword;
+      if (password) {
+        const ids = [userId, String(response.data?.userId || "")].filter(Boolean);
+        setResetPasswords((prev) => {
+          const next = { ...prev };
+          ids.forEach((id) => {
+            next[id] = password;
+          });
+          return next;
+        });
+        setVisiblePasswords((prev) => {
+          const next = { ...prev };
+          ids.forEach((id) => {
+            next[id] = true;
+          });
+          return next;
+        });
+      }
+      toast.success(response.message || "Password reset. New password generated.");
+      if (response.emailSent === false) {
+        toast.info("Email was not sent. Copy the password and share it with the user.");
       }
     },
   });

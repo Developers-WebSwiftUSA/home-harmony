@@ -85,11 +85,14 @@ const AdminUserReview = () => {
 
   const resetPasswordMutation = useMutation({
     mutationFn: () => passwordResetService.adminReset(id!),
-    onSuccess: (data) => {
-      if (data.data?.newPassword) {
-        setResetPassword(data.data.newPassword);
+    onSuccess: (response) => {
+      if (response.data?.newPassword) {
+        setResetPassword(response.data.newPassword);
         setShowPassword(true);
-        toast.success("Password reset. New password generated.");
+        toast.success(response.message || "Password reset. New password generated.");
+        if (response.emailSent === false) {
+          toast.info("Email was not sent. Copy the password and share it with the user.");
+        }
         queryClient.invalidateQueries({ queryKey: ["admin-user", id] });
         queryClient.invalidateQueries({ queryKey: ["admin-user-password-resets", id] });
       }

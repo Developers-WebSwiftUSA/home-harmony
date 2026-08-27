@@ -1,20 +1,14 @@
+import './config/loadEnv.js';
 import express from 'express';
 import cors from 'cors';
-import dotenv from 'dotenv';
 import path from 'path';
 import fs from 'node:fs';
 import { fileURLToPath } from 'url';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
+import mongoose from 'mongoose';
 import connectDB from './config/database.js';
 import errorHandler from './middleware/errorHandler.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const repoRootEnv = path.resolve(__dirname, '..', '.env');
-const frontendDist = path.resolve(__dirname, '..', 'frontend', 'dist');
-const frontendIndex = path.join(frontendDist, 'index.html');
-
 import authRoutes from './routes/auth.routes.js';
 import userRoutes from './routes/user.routes.js';
 import propertyRoutes from './routes/property.routes.js';
@@ -30,8 +24,10 @@ import crmRoutes from './routes/crm.routes.js';
 import adCampaignRoutes from './routes/adCampaign.routes.js';
 import newsRoutes from './routes/news.routes.js';
 
-dotenv.config({ path: repoRootEnv });
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const frontendDist = path.resolve(__dirname, '..', 'frontend', 'dist');
+const frontendIndex = path.join(frontendDist, 'index.html');
 
 const app = express();
 const httpServer = createServer(app);
@@ -112,7 +108,8 @@ app.get('/api/health', (req, res) => {
   res.status(200).json({
     success: true,
     message: 'Server is running',
-    timestamp: new Date().toISOString()
+    timestamp: new Date().toISOString(),
+    mongoHost: mongoose.connection?.host || null,
   });
 });
 

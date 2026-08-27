@@ -1,27 +1,41 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
-import { Calendar, Clock, MapPin, Search, Filter, Eye } from "lucide-react";
+import { Calendar, Search } from "lucide-react";
 import { DashboardSidebar } from "./AdminDashboard";
 import { tourService } from "@/services/tour.service";
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import TourNotification from "@/components/tours/TourNotification";
-import { useAuth } from "@/context/AuthContext";
 import { isTourUpcoming } from "@/lib/tourDate";
+import { DashboardTabPills } from "@/components/dashboard/DashboardTabPills";
+import type { Tour } from "@/types/models";
+
+const RESCHEDULE_STATUSES = new Set([
+  "reschedule_requested",
+  "reschedule_pending_buyer_approval",
+]);
+
+const tourMatchesPill = (tour: Tour, key: string) => {
+  if (key === "all") return true;
+  if (key === "reschedule") return RESCHEDULE_STATUSES.has(tour.status);
+  return tour.status === key;
+};
 
 const BuyerTours = () => {
   const navigate = useNavigate();
-  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
-  const { data, isLoading, refetch } = useQuery({
-    queryKey: ["buyer-tours", statusFilter],
-    queryFn: () => tourService.list({ status: statusFilter !== "all" ? statusFilter : undefined }),
+  const { data, isLoading } = useQuery({
+    queryKey: ["buyer-tours"],
+    queryFn: () => tourService.list(),
   });
 
-  const tours = data?.data || [];
+  const allTours = data?.data || [];
+  const tours = useMemo(
+    () => allTours.filter((tour) => tourMatchesPill(tour, statusFilter)),
+    [allTours, statusFilter]
+  );
 
   const filteredTours = tours.filter((tour) => {
     const matchesSearch =
@@ -53,34 +67,32 @@ const BuyerTours = () => {
           <p className="text-sm text-muted-foreground">Manage and track your property tours</p>
         </div>
 
-        {/* Filters */}
+        <DashboardTabPills
+          className="mb-6"
+          activeKey={statusFilter}
+          onChange={setStatusFilter}
+          tabs={[
+            { key: "all", label: "Total Tours", count: allTours.length },
+            { key: "pending", label: "Pending", count: allTours.filter((t) => t.status === "pending").length },
+            { key: "confirmed", label: "Confirmed", count: allTours.filter((t) => t.status === "confirmed").length },
+            {
+              key: "reschedule",
+              label: "Reschedule",
+              count: allTours.filter((t) => RESCHEDULE_STATUSES.has(t.status)).length,
+            },
+            { key: "completed", label: "Completed", count: allTours.filter((t) => t.status === "completed").length },
+          ]}
+        />
+
         <div className="bg-card border border-border rounded-xl p-4 mb-6">
-          <div className="flex flex-col md:flex-row gap-4">
-            <div className="flex-1 relative">
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-              <Input
-                placeholder="Search by property name or location..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-10"
-              />
-            </div>
-            <div className="flex items-center gap-2">
-              <Filter className="w-4 h-4 text-muted-foreground" />
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
-                className="border border-border rounded-md px-3 py-2 text-sm bg-background text-foreground outline-none"
-              >
-                <option value="all">All Tours</option>
-                <option value="pending">Pending</option>
-                <option value="confirmed">Confirmed</option>
-                <option value="reschedule_requested">Reschedule Requested</option>
-                <option value="reschedule_pending_buyer_approval">Awaiting My Approval</option>
-                <option value="completed">Completed</option>
-                <option value="cancelled">Cancelled</option>
-              </select>
-            </div>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by property name or location..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10"
+            />
           </div>
         </div>
 

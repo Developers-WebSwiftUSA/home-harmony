@@ -42,13 +42,6 @@ const pageConfig = {
   },
 };
 
-const tabs = [
-  { key: "all", label: "All" },
-  { key: "pending", label: "Pending" },
-  { key: "active", label: "Active" },
-  { key: "past", label: "Past" },
-];
-
 const pastStatuses: AdCampaignStatus[] = ["expired", "cancelled", "rejected"];
 
 const getPropertyFromCampaign = (campaign: AdCampaign): Property | null => {
@@ -62,27 +55,19 @@ const AdCampaigns = ({ role }: Props) => {
   const [tab, setTab] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
 
-  const queryParams = useMemo(() => {
-    if (tab === "all" || tab === "past") return {};
-    return { status: tab };
-  }, [tab]);
-
   const { data, isLoading } = useQuery({
-    queryKey: ["ad-campaigns", role, queryParams],
-    queryFn: () => adCampaignService.list({ ...queryParams, limit: 100 }),
-  });
-
-  const { data: allData } = useQuery({
-    queryKey: ["ad-campaigns", role, "summary"],
+    queryKey: ["ad-campaigns", role, "all"],
     queryFn: () => adCampaignService.list({ limit: 100 }),
   });
 
+  const allCampaigns = data?.data || [];
   const campaigns = useMemo(() => {
-    const list = data?.data || [];
+    const list = allCampaigns;
     if (tab === "past") return list.filter((c) => pastStatuses.includes(c.status));
-    return list;
-  }, [data?.data, tab]);
-  const allCampaigns = allData?.data || [];
+    if (tab === "spend") return list.filter((c) => Number(c.chargedAmount || 0) > 0);
+    if (tab === "all") return list;
+    return list.filter((c) => c.status === tab);
+  }, [allCampaigns, tab]);
 
   const cancelMutation = useMutation({
     mutationFn: (id: string) => adCampaignService.cancel(id),
@@ -109,28 +94,34 @@ const AdCampaigns = ({ role }: Props) => {
           </Button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-          <div className="bg-card border border-border rounded-xl p-5">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Pending review</p>
-            <p className="text-2xl font-bold text-foreground mt-2">
-              {allCampaigns.filter((c) => c.status === "pending").length}
-            </p>
-          </div>
-          <div className="bg-card border border-border rounded-xl p-5">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Live campaigns</p>
-            <p className="text-2xl font-bold text-foreground mt-2">
-              {allCampaigns.filter((c) => c.status === "active").length}
-            </p>
-          </div>
-          <div className="bg-card border border-border rounded-xl p-5">
-            <p className="text-xs uppercase tracking-wide text-muted-foreground">Total spend</p>
-            <p className="text-2xl font-bold text-primary mt-2">
-              {formatCurrency(allCampaigns.reduce((sum, c) => sum + Number(c.chargedAmount || 0), 0))}
-            </p>
-          </div>
-        </div>
-
-        <DashboardTabPills tabs={tabs} activeKey={tab} onChange={setTab} className="mb-6" />
+        <DashboardTabPills
+          className="mb-6"
+          tabs={[
+            { key: "all", label: "All", count: allCampaigns.length },
+            {
+              key: "pending",
+              label: "Pending",
+              count: allCampaigns.filter((c) => c.status === "pending").length,
+            },
+            {
+              key: "active",
+              label: "Active",
+              count: allCampaigns.filter((c) => c.status === "active").length,
+            },
+            {
+              key: "past",
+              label: "Past",
+              count: allCampaigns.filter((c) => pastStatuses.includes(c.status)).length,
+            },
+            {
+              key: "spend",
+              label: "Total Spend",
+              count: formatCurrency(allCampaigns.reduce((sum, c) => sum + Number(c.chargedAmount || 0), 0)),
+            },
+          ]}
+          activeKey={tab}
+          onChange={setTab}
+        />
 
         {isLoading ? (
           <div className="py-16 flex items-center justify-center text-muted-foreground">

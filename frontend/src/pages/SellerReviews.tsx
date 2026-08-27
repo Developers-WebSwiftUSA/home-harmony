@@ -1,12 +1,14 @@
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Star } from "lucide-react";
 import { DashboardSidebar } from "./AdminDashboard";
 import { tourService } from "@/services/tour.service";
 import { useAuth } from "@/context/AuthContext";
 import { TourReviewsList } from "@/components/TourReviewsList";
+import { DashboardTabPills } from "@/components/dashboard/DashboardTabPills";
 
 const SellerReviews = () => {
   const { isAuthenticated } = useAuth();
+  const [pill, setPill] = useState("all");
   const { data, isLoading } = useQuery({
     queryKey: ["seller-reviews"],
     queryFn: () => tourService.listReviews({ limit: 500 }),
@@ -14,6 +16,13 @@ const SellerReviews = () => {
   });
 
   const tours = data?.data || [];
+  const recommended = tours.filter((t) => t.feedback?.wouldRecommend);
+  const visible = useMemo(() => {
+    if (pill === "recommend") return recommended;
+    if (pill === "property") return tours.filter((t) => t.feedback?.propertyRating);
+    if (pill === "agent") return tours.filter((t) => t.feedback?.agentRating);
+    return tours;
+  }, [pill, recommended, tours]);
 
   const averagePropertyRating =
     tours.length > 0
@@ -36,31 +45,20 @@ const SellerReviews = () => {
           </p>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
-          <div className="bg-card border border-border rounded-xl p-4">
-            <div className="text-2xl font-bold text-foreground">{tours.length}</div>
-            <div className="text-sm text-muted-foreground">Total Reviews</div>
-          </div>
-          <div className="bg-yellow-500/10 border border-yellow-500/20 rounded-xl p-4">
-            <div className="text-2xl font-bold text-yellow-600">{averagePropertyRating.toFixed(1)}</div>
-            <div className="text-sm text-yellow-600">Avg Property Rating</div>
-          </div>
-          <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4">
-            <div className="text-2xl font-bold text-blue-600">
-              {agentReviews.length ? averageAgentRating.toFixed(1) : "—"}
-            </div>
-            <div className="text-sm text-blue-600">Avg Agent Rating</div>
-          </div>
-          <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-4">
-            <div className="text-2xl font-bold text-green-600">
-              {tours.filter((t) => t.feedback?.wouldRecommend).length}
-            </div>
-            <div className="text-sm text-green-600">Would Recommend</div>
-          </div>
-        </div>
+        <DashboardTabPills
+          className="mb-6"
+          activeKey={pill}
+          onChange={setPill}
+          tabs={[
+            { key: "all", label: "Total Reviews", count: tours.length },
+            { key: "property", label: "Avg Property Rating", count: averagePropertyRating.toFixed(1) },
+            { key: "agent", label: "Avg Agent Rating", count: agentReviews.length ? averageAgentRating.toFixed(1) : "—" },
+            { key: "recommend", label: "Would Recommend", count: recommended.length },
+          ]}
+        />
 
         <TourReviewsList
-          tours={tours}
+          tours={visible}
           isLoading={isLoading}
           defaultRatingType="property"
           emptyMessage="No feedback yet. Reviews appear after buyers complete tours on your listings and submit feedback."
