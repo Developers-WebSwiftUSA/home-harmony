@@ -8,7 +8,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useSearchParams } from "react-router-dom";
 import { useSocket } from "@/context/SocketContext";
 import { Message } from "@/types/models";
-import { useUserIdConversationDeepLink } from "@/hooks/useUserIdConversationDeepLink";
+import { useUserIdConversationDeepLink, findSelectedConversation } from "@/hooks/useUserIdConversationDeepLink";
 
 const AgentMessages = () => {
   const queryClient = useQueryClient();
@@ -27,7 +27,7 @@ const AgentMessages = () => {
     if (conv) setSelectedConversation(conv);
   }, [searchParams]);
 
-  useUserIdConversationDeepLink({
+  const openedConversation = useUserIdConversationDeepLink({
     conversationsQueryKey: ["agent-conversations"],
     messagesPath: "/agent/messages",
     selectedConversation,
@@ -41,7 +41,7 @@ const AgentMessages = () => {
 
   const conversations = conversationsData?.data || [];
 
-  const selectedConv = conversations.find((c) => c._id === selectedConversation) || null;
+  const selectedConv = findSelectedConversation(conversations, selectedConversation, openedConversation);
 
   const { data: messagesData, isLoading: messagesLoading } = useQuery({
     queryKey: ["conversation-messages", selectedConversation],
@@ -125,7 +125,9 @@ const AgentMessages = () => {
   };
 
   const getParticipant = (conversationId?: string) => {
-    const conv = conversations.find((c) => c._id === conversationId);
+    const conv =
+      conversations.find((c) => String(c._id) === String(conversationId)) ||
+      (String(selectedConv?._id) === String(conversationId) ? selectedConv : null);
     return conv?.participants.find((p) => (p._id || p.id) !== (user?._id || user?.id));
   };
 

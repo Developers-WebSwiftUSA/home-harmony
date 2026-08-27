@@ -1,4 +1,5 @@
 import { User } from "@/types/models";
+import { resolvePropertyImageUrl } from "@/lib/propertyImage";
 
 export const getDisplayName = (user?: User | null): string => {
   if (!user) return "User";
@@ -36,7 +37,9 @@ export const isSameUser = (
 
 export const getAvatarUrl = (user?: User | null): string => {
   if (!user) return "";
-  if (user.avatar) return user.avatar;
+  if (user.avatar) {
+    return resolvePropertyImageUrl(user.avatar) || user.avatar;
+  }
   const seed = encodeURIComponent(
     `${user.firstName || ""} ${user.lastName || ""}`.trim() || user.email || "user"
   );

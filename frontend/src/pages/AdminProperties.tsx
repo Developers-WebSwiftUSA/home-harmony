@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { Link } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { DashboardSidebar } from "./AdminDashboard";
 import { propertyService } from "@/services/property.service";
@@ -9,7 +9,9 @@ import { getPropertyPrimaryImage } from "@/lib/propertyImage";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { Eye, CheckCircle, Clock, XCircle, Trash2 } from "lucide-react";
+import { liveQueryOptions } from "@/lib/liveQuery";
 import { cn } from "@/lib/utils";
+import { isRentalListing } from "@/features/rentals/lib/rentalFormat";
 import type { Property } from "@/types/models";
 
 type PropertiesTab = "all" | "pending" | "active" | "rejected";
@@ -125,20 +127,37 @@ const PropertyCard = ({
 
 const AdminProperties = () => {
   const queryClient = useQueryClient();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [sortBy, setSortBy] = useState<string>(SORT_OPTIONS[0].value);
-  const [activeTab, setActiveTab] = useState<PropertiesTab>("pending");
+  const tabParam = searchParams.get("tab");
+  const listingTypeParam = searchParams.get("listingType");
+  const activeTab: PropertiesTab =
+    tabParam === "all" || tabParam === "pending" || tabParam === "active" || tabParam === "rejected"
+      ? tabParam
+      : "pending";
+  const listingTypeFilter = listingTypeParam === "sale" || listingTypeParam === "rent" ? listingTypeParam : "all";
+
+  const setActiveTab = (tab: PropertiesTab) => {
+    const next = new URLSearchParams(searchParams);
+    if (tab === "pending") next.delete("tab");
+    else next.set("tab", tab);
+    setSearchParams(next, { replace: true });
+  };
 
   const { data: approvedData, isLoading: loadingApproved } = useQuery({
     queryKey: ["admin-properties", "active"],
     queryFn: () => propertyService.list({ status: "active", limit: 500 }),
+    ...liveQueryOptions,
   });
   const { data: pendingData, isLoading: loadingPending } = useQuery({
     queryKey: ["admin-properties", "pending"],
     queryFn: () => propertyService.list({ status: "pending", limit: 500 }),
+    ...liveQueryOptions,
   });
   const { data: rejectedData, isLoading: loadingRejected } = useQuery({
     queryKey: ["admin-properties", "rejected"],
     queryFn: () => propertyService.list({ status: "rejected", limit: 500 }),
+    ...liveQueryOptions,
   });
 
   const isLoading = loadingApproved || loadingPending || loadingRejected;
@@ -175,17 +194,27 @@ const AdminProperties = () => {
     },
   });
 
+  const matchesListingType = (property: Property) => {
+    if (listingTypeFilter === "sale") {
+      return property.listingType === "sale" || property.listingType === "both" || !property.listingType;
+    }
+    if (listingTypeFilter === "rent") {
+      return isRentalListing(property);
+    }
+    return true;
+  };
+
   const approved = useMemo(
-    () => sortProperties(approvedData?.data || [], sortBy),
-    [approvedData?.data, sortBy]
+    () => sortProperties((approvedData?.data || []).filter(matchesListingType), sortBy),
+    [approvedData?.data, sortBy, listingTypeFilter]
   );
   const underApproval = useMemo(
-    () => sortProperties(pendingData?.data || [], sortBy),
-    [pendingData?.data, sortBy]
+    () => sortProperties((pendingData?.data || []).filter(matchesListingType), sortBy),
+    [pendingData?.data, sortBy, listingTypeFilter]
   );
   const rejected = useMemo(
-    () => sortProperties(rejectedData?.data || [], sortBy),
-    [rejectedData?.data, sortBy]
+    () => sortProperties((rejectedData?.data || []).filter(matchesListingType), sortBy),
+    [rejectedData?.data, sortBy, listingTypeFilter]
   );
   const totalCount = approved.length + underApproval.length + rejected.length;
 

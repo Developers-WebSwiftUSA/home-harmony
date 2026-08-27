@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { seedSuperAdmin } from './seed.js';
+import { seedSuperAdmin, seedSampleNews } from './seed.js';
 import { migrateConversationIndexes } from './migrateConversations.js';
 
 const connectDB = async () => {
@@ -10,6 +10,7 @@ const connectDB = async () => {
 
     console.log(`MongoDB Connected: ${conn.connection.host}`);
     await seedSuperAdmin();
+    await seedSampleNews();
     await migrateConversationIndexes();
   } catch (error) {
     console.error(`Error: ${error.message}`);

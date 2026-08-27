@@ -37,8 +37,14 @@ const ExpertsSection = () => {
           <p className="text-center text-sm text-muted-foreground">No active agents yet.</p>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
-            {agents.map((agent) => (
-              <div key={agent._id || agent.id} className="text-center group">
+            {agents.map((agent) => {
+              const agentId = agent._id || agent.id;
+              return (
+              <Link
+                key={agentId}
+                to={`/agents/${agentId}`}
+                className="text-center group"
+              >
                 <div className="relative mb-4 mx-auto w-52 h-52 rounded-2xl overflow-hidden bg-muted flex items-center justify-center">
                   <UserAvatar user={agent} size="lg" className="w-52 h-52 text-4xl rounded-2xl" />
                   {agent.agentProfile?.verified && (
@@ -47,15 +53,18 @@ const ExpertsSection = () => {
                     </div>
                   )}
                 </div>
-                <h3 className="font-heading font-bold text-foreground text-lg">{getDisplayName(agent)}</h3>
+                <h3 className="font-heading font-bold text-foreground text-lg group-hover:text-primary transition-colors">
+                  {getDisplayName(agent)}
+                </h3>
                 <p className="text-sm text-muted-foreground mb-2">
                   {agent.agentProfile?.specialization?.[0] || "Property Expert"}
                 </p>
                 <div className="flex justify-center">
                   <RatingStars rating={getAgentRating(agent)} size="xs" />
                 </div>
-              </div>
-            ))}
+              </Link>
+              );
+            })}
           </div>
         )}
       </div>

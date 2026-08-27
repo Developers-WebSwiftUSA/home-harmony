@@ -59,6 +59,7 @@ export interface AgentPublicProfile {
   reviewCount: number;
   assignedProperties: number;
   reviews: AgentReview[];
+  properties?: Property[];
 }
 
 export interface RentalDetails {

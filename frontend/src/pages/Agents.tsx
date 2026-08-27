@@ -53,10 +53,13 @@ const Agents = () => {
                     key={agent._id || agent.id}
                     className="bg-card border border-border rounded-xl p-6 text-center hover:shadow-xl transition-shadow group"
                   >
+                    <Link to={`/agents/${agent._id || agent.id}`} className="block">
                     <div className="w-28 h-28 rounded-full overflow-hidden mx-auto mb-4 flex items-center justify-center bg-muted">
                       <UserAvatar user={agent} size="lg" className="w-28 h-28 text-2xl" />
                     </div>
-                    <h3 className="font-heading font-bold text-foreground text-lg">{getDisplayName(agent)}</h3>
+                    <h3 className="font-heading font-bold text-foreground text-lg group-hover:text-primary transition-colors">
+                      {getDisplayName(agent)}
+                    </h3>
                     <p className="text-sm text-primary font-medium mb-1">{specialization}</p>
                     {location && (
                       <p className="flex items-center justify-center gap-1 text-xs text-muted-foreground mb-3">
@@ -71,6 +74,7 @@ const Agents = () => {
                       {agent.assignedProperties || 0} Assigned Propert
                       {(agent.assignedProperties || 0) === 1 ? "y" : "ies"}
                     </p>
+                    </Link>
                     <div className="flex items-center justify-center gap-3 text-xs text-muted-foreground mb-4">
                       {agent.phone && (
                         <a href={`tel:${agent.phone}`} className="flex items-center gap-1 hover:text-primary transition-colors">
@@ -83,14 +87,21 @@ const Agents = () => {
                         </a>
                       )}
                     </div>
-                    <Link
-                      to={`/contact-agent?agentId=${agent._id || agent.id}&propertyTitle=${encodeURIComponent("General inquiry")}`}
-                      className="block"
-                    >
-                      <Button className="w-full" size="sm">
-                        View Profile / Contact
-                      </Button>
-                    </Link>
+                    <div className="grid grid-cols-2 gap-2">
+                      <Link to={`/agents/${agent._id || agent.id}`} className="block">
+                        <Button variant="outline" className="w-full" size="sm">
+                          View Profile
+                        </Button>
+                      </Link>
+                      <Link
+                        to={`/contact-agent?agentId=${agent._id || agent.id}&propertyTitle=${encodeURIComponent("General inquiry")}`}
+                        className="block"
+                      >
+                        <Button className="w-full" size="sm">
+                          Contact
+                        </Button>
+                      </Link>
+                    </div>
                   </div>
                 );
               })}

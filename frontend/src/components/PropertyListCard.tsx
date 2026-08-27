@@ -23,6 +23,7 @@ type Props = {
   layout?: "grid" | "list";
   petPolicy?: PetPolicy | string | null;
   petFee?: number;
+  to?: string;
 };
 
 export const PropertyListCard = ({
@@ -40,11 +41,13 @@ export const PropertyListCard = ({
   layout = "grid",
   petPolicy,
   petFee,
+  to,
 }: Props) => {
+  const href = to || `/properties/${id}`;
   if (layout === "list") {
     return (
       <Link
-        to={`/properties/${id}`}
+        to={href}
         className="bg-card rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-shadow flex flex-col md:flex-row md:items-stretch group"
       >
         <div className="relative w-full md:w-72 h-48 md:h-auto md:min-h-[12rem] flex-shrink-0 overflow-hidden">
@@ -90,7 +93,7 @@ export const PropertyListCard = ({
 
   return (
     <Link
-      to={`/properties/${id}`}
+      to={href}
       className="bg-card rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-shadow duration-300 group h-full flex flex-col"
     >
       <div className="relative h-56 flex-shrink-0 overflow-hidden">

@@ -1,12 +1,28 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import { Users, Home, Calendar, Star, Eye, MessageSquare } from "lucide-react";
 import { DashboardSidebar } from "./AdminDashboard";
 import { analyticsService } from "@/services/analytics.service";
 import { useAuth } from "@/context/AuthContext";
 import { formatOverviewValue, getTrend } from "@/lib/analyticsDisplay";
 import { ArrowDown, ArrowUp } from "lucide-react";
+import { liveQueryOptions } from "@/lib/liveQuery";
 
 const overviewIcons = [Users, Home, Calendar, Star];
+
+const overviewHrefs: Record<string, string> = {
+  "Total Users": "/admin/users",
+  "Active Listings": "/admin/properties?tab=active",
+  "Scheduled Tours": "/admin/tours",
+  "Tour Reviews": "/admin/reviews",
+};
+
+const roleHrefs: Record<string, string> = {
+  admin: "/admin/users?role=admin",
+  buyer: "/admin/users?role=buyer",
+  seller: "/admin/users?role=seller",
+  agent: "/admin/users?role=agent",
+};
 
 const AdminAnalytics = () => {
   const { isAuthenticated } = useAuth();
@@ -14,6 +30,7 @@ const AdminAnalytics = () => {
     queryKey: ["admin-analytics"],
     queryFn: () => analyticsService.admin(),
     enabled: isAuthenticated,
+    ...liveQueryOptions,
   });
 
   const analytics = data?.data;
@@ -38,8 +55,13 @@ const AdminAnalytics = () => {
               {analytics.overview.map((stat, index) => {
                 const Icon = overviewIcons[index] || Users;
                 const { trend, label } = getTrend(stat.change);
+                const href = overviewHrefs[stat.label] || "/admin";
                 return (
-                  <div key={stat.label} className="bg-card border border-border rounded-xl p-5">
+                  <Link
+                    key={stat.label}
+                    to={href}
+                    className="bg-card border border-border rounded-xl p-5 hover:border-primary/40 hover:shadow-sm transition-all"
+                  >
                     <div className="flex items-center justify-between mb-3">
                       <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
                         <Icon className="w-5 h-5 text-primary" />
@@ -55,30 +77,30 @@ const AdminAnalytics = () => {
                     </div>
                     <div className="text-2xl font-bold text-foreground">{formatOverviewValue(stat)}</div>
                     <div className="text-xs text-muted-foreground">{stat.label}</div>
-                  </div>
+                  </Link>
                 );
               })}
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="bg-card border border-border rounded-xl p-5">
+              <Link to="/admin/properties" className="bg-card border border-border rounded-xl p-5 hover:border-primary/40 transition-all">
                 <div className="flex items-center gap-2 mb-2">
                   <Eye className="w-4 h-4 text-primary" />
                   <p className="text-xs text-muted-foreground">Total Property Views</p>
                 </div>
                 <p className="text-2xl font-bold text-foreground">{analytics.totals.views.toLocaleString()}</p>
-              </div>
-              <div className="bg-card border border-border rounded-xl p-5">
+              </Link>
+              <Link to="/admin/properties" className="bg-card border border-border rounded-xl p-5 hover:border-primary/40 transition-all">
                 <div className="flex items-center gap-2 mb-2">
                   <MessageSquare className="w-4 h-4 text-primary" />
                   <p className="text-xs text-muted-foreground">Total Inquiries</p>
                 </div>
                 <p className="text-2xl font-bold text-foreground">{analytics.totals.inquiries.toLocaleString()}</p>
-              </div>
-              <div className="bg-card border border-border rounded-xl p-5">
+              </Link>
+              <Link to="/admin/properties?tab=pending" className="bg-card border border-border rounded-xl p-5 hover:border-primary/40 transition-all">
                 <p className="text-xs text-muted-foreground mb-2">Pending Moderation</p>
                 <p className="text-2xl font-bold text-foreground">{analytics.totals.pendingProperties}</p>
-              </div>
+              </Link>
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -115,7 +137,7 @@ const AdminAnalytics = () => {
                       ? Math.round((count / analytics.totals.users) * 100)
                       : 0;
                     return (
-                      <div key={role}>
+                      <Link key={role} to={roleHrefs[role] || "/admin/users"} className="block hover:opacity-90">
                         <div className="flex items-center justify-between mb-2">
                           <span className="text-sm font-medium text-foreground capitalize">{role}</span>
                           <span className="text-sm text-muted-foreground">
@@ -125,7 +147,7 @@ const AdminAnalytics = () => {
                         <div className="w-full bg-muted rounded-full h-2">
                           <div className="bg-primary h-2 rounded-full" style={{ width: `${pct}%` }} />
                         </div>
-                      </div>
+                      </Link>
                     );
                   })}
                 </div>
@@ -148,7 +170,11 @@ const AdminAnalytics = () => {
                   <tbody>
                     {analytics.topProperties.map((prop) => (
                       <tr key={prop.id} className="border-b border-border">
-                        <td className="py-3 px-4 text-sm text-foreground">{prop.name}</td>
+                        <td className="py-3 px-4 text-sm text-foreground">
+                          <Link to={`/admin/properties/${prop.id}`} className="hover:text-primary">
+                            {prop.name}
+                          </Link>
+                        </td>
                         <td className="py-3 px-4 text-sm text-muted-foreground">{prop.seller}</td>
                         <td className="py-3 px-4 text-right text-sm">{prop.views}</td>
                         <td className="py-3 px-4 text-right text-sm">{prop.inquiries}</td>

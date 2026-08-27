@@ -6,7 +6,7 @@ import { userService } from "@/services/user.service";
 import { passwordResetService } from "@/services/passwordReset.service";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { ArrowLeft, Save, KeyRound, Eye, EyeOff, Copy, Trash2, Mail, Phone, User, Star } from "lucide-react";
+import { ArrowLeft, Save, KeyRound, Eye, EyeOff, Copy, Trash2, Mail, Phone, User, Star, UserCheck } from "lucide-react";
 import { UserRole } from "@/types/models";
 import { useAuth } from "@/context/AuthContext";
 import { tourService } from "@/services/tour.service";
@@ -14,6 +14,7 @@ import { TourReviewsList } from "@/components/TourReviewsList";
 import { getUserReviewSummary } from "@/lib/reviewStats";
 import { formatRating, getAgentRating } from "@/lib/ratings";
 import { RatingStars } from "@/components/RatingStars";
+import { UserAvatar } from "@/components/UserAvatar";
 
 const AdminUserReview = () => {
   const { id } = useParams<{ id: string }>();
@@ -103,6 +104,15 @@ const AdminUserReview = () => {
     },
   });
 
+  const verifyMutation = useMutation({
+    mutationFn: () => userService.verify(id!),
+    onSuccess: () => {
+      toast.success("Agent approved");
+      queryClient.invalidateQueries({ queryKey: ["admin-user", id] });
+      queryClient.invalidateQueries({ queryKey: ["admin-users"] });
+    },
+  });
+
   const copyPassword = () => {
     if (resetPassword) {
       navigator.clipboard.writeText(resetPassword);
@@ -172,17 +182,18 @@ const AdminUserReview = () => {
             <div className="bg-card border border-border rounded-xl p-6">
               <h2 className="font-heading font-bold text-foreground mb-4">User Profile</h2>
               <div className="flex items-center gap-4">
-                <div className="w-20 h-20 rounded-full bg-primary/10 flex items-center justify-center">
-                  <span className="text-primary font-bold text-2xl">
-                    {(user.firstName?.[0] || user.email[0]).toUpperCase()}
-                  </span>
-                </div>
+                <UserAvatar user={user} size="lg" className="w-20 h-20 text-2xl" />
                 <div>
                   <h3 className="font-heading font-bold text-foreground text-lg">
                     {user.firstName} {user.lastName}
                   </h3>
                   <p className="text-sm text-muted-foreground">{user.email}</p>
                   <p className="text-xs text-muted-foreground capitalize">{user.role}</p>
+                  {user.role === "agent" && (
+                    <p className={`text-xs mt-1 ${user.agentProfile?.verified ? "text-green-600" : "text-yellow-700"}`}>
+                      {user.agentProfile?.verified ? "Verified agent" : "Awaiting approval"}
+                    </p>
+                  )}
                 </div>
               </div>
             </div>
@@ -281,6 +292,17 @@ const AdminUserReview = () => {
                 <Button type="submit" disabled={updateMutation.isPending} className="gap-2">
                   <Save className="w-4 h-4" /> Save Changes
                 </Button>
+                {user.role === "agent" && !user.agentProfile?.verified && (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="gap-2"
+                    onClick={() => verifyMutation.mutate()}
+                    disabled={verifyMutation.isPending}
+                  >
+                    <UserCheck className="w-4 h-4" /> Approve Agent
+                  </Button>
+                )}
               </div>
             </form>
 

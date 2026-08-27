@@ -185,17 +185,17 @@ export const HELP_MANUALS: Record<string, HelpManual> = {
   "contact-agent": {
     id: "contact-agent",
     title: "Contact Agent",
-    summary: "Reach a specific agent about a property or general help.",
+    summary: "Open an in-app chat with a specific agent.",
     role: "public",
     steps: [
       {
-        title: "Complete the contact form",
-        description: "Provide your details and message. If you arrived from a listing, context may be pre-filled.",
+        title: "Sign in if needed",
+        description: "If you are not logged in, Contact Agent takes you to login first.",
         visual: "message-chat",
       },
       {
-        title: "Follow up in Messages",
-        description: "After signing in, continue the conversation in your dashboard Messages section.",
+        title: "Chat opens automatically",
+        description: "After signing in, you are taken to Messages with that agent so you can start the conversation.",
       },
     ],
   },
@@ -213,7 +213,7 @@ export const HELP_MANUALS: Record<string, HelpManual> = {
       },
       {
         title: "Read full articles",
-        description: "Click a card to expand or navigate to the full article content.",
+        description: "Click a card or Read More to open the full article.",
       },
     ],
   },
@@ -936,6 +936,29 @@ export const HELP_MANUALS: Record<string, HelpManual> = {
     ],
   },
 
+  "admin-news": {
+    id: "admin-news",
+    title: "News",
+    summary: "Publish and schedule articles for the public News section.",
+    role: "admin",
+    steps: [
+      {
+        title: "Add an article",
+        description: "Open News in the sidebar and click Add News. Fill in the title, excerpt, full article, and optional image.",
+        visual: "listing-form",
+      },
+      {
+        title: "Active vs scheduled",
+        description: "Publish now to make it live immediately, or schedule a date so it appears on the site at that time.",
+        visual: "table-actions",
+      },
+      {
+        title: "Filter and edit",
+        description: "Use the Active, Scheduled, and Archived pills to filter. Edit, publish now, archive, or delete any article.",
+      },
+    ],
+  },
+
   "admin-tours": {
     id: "admin-tours",
     title: "Tours",
@@ -1100,6 +1123,7 @@ export const ROLE_HELP_ORDER: Record<string, string[]> = {
     "admin-properties",
     "admin-property-review",
     "admin-ad-campaigns",
+    "admin-news",
     "admin-tours",
     "tour-detail",
     "admin-reviews",

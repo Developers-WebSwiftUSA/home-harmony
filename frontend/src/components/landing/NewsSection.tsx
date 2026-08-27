@@ -1,34 +1,18 @@
-import { Calendar, ArrowRight } from "lucide-react";
+import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { Newspaper } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import news1 from "@/assets/news-1.jpg";
-import news2 from "@/assets/news-2.jpg";
-import property1 from "@/assets/property-1.jpg";
-
-const articles = [
-  {
-    image: property1,
-    title: "Hello world!",
-    excerpt: "Recent Real Estate Market Insights, tips on how to get the best value for your money.",
-    date: "Feb 10, 2026",
-    category: "Tips",
-  },
-  {
-    image: news1,
-    title: "Top 6 Amazing Places to Stay in California",
-    excerpt: "Discover extraordinary living options across the Golden State from modern condos to coastal villas.",
-    date: "Feb 8, 2026",
-    category: "Travel",
-  },
-  {
-    image: news2,
-    title: "The crafting tool will accelerate your work",
-    excerpt: "Learn how new property management tools are revolutionizing real estate for buyers and sellers.",
-    date: "Feb 5, 2026",
-    category: "Tools",
-  },
-];
+import NewsCard from "@/components/news/NewsCard";
+import { newsService } from "@/services/news.service";
 
 const NewsSection = () => {
+  const { data, isLoading } = useQuery({
+    queryKey: ["public-news", "home"],
+    queryFn: () => newsService.listPublic({ limit: 3 }),
+  });
+
+  const articles = data?.data || [];
+
   return (
     <section className="section-padding bg-muted">
       <div className="container">
@@ -39,39 +23,25 @@ const NewsSection = () => {
               Our Latest News Update
             </h2>
           </div>
-          <Button className="mt-4 md:mt-0 w-fit">See All Blog</Button>
+          <Link to="/news" className="mt-4 md:mt-0 w-fit">
+            <Button>See All News</Button>
+          </Link>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-          {articles.map((article) => (
-            <div
-              key={article.title}
-              className="bg-card rounded-xl overflow-hidden shadow-sm hover:shadow-lg transition-shadow group"
-            >
-              <div className="h-48 overflow-hidden">
-                <img
-                  src={article.image}
-                  alt={article.title}
-                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-                />
-              </div>
-              <div className="p-5">
-                <div className="flex items-center gap-4 text-xs text-muted-foreground mb-3">
-                  <span className="bg-primary/10 text-primary px-2 py-0.5 rounded">{article.category}</span>
-                  <span className="flex items-center gap-1">
-                    <Calendar className="w-3 h-3" />
-                    {article.date}
-                  </span>
-                </div>
-                <h3 className="font-heading font-bold text-foreground mb-2">{article.title}</h3>
-                <p className="text-sm text-muted-foreground leading-relaxed mb-4">{article.excerpt}</p>
-                <a href="#" className="text-primary text-sm font-semibold flex items-center gap-1 hover:gap-2 transition-all">
-                  Read More <ArrowRight className="w-4 h-4" />
-                </a>
-              </div>
-            </div>
-          ))}
-        </div>
+        {isLoading ? (
+          <p className="text-sm text-muted-foreground">Loading news...</p>
+        ) : articles.length === 0 ? (
+          <div className="bg-card rounded-xl p-10 text-center border border-border">
+            <Newspaper className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
+            <p className="text-muted-foreground">No news has been published yet.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {articles.map((article) => (
+              <NewsCard key={article._id} article={article} />
+            ))}
+          </div>
+        )}
       </div>
     </section>
   );

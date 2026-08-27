@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import { DashboardSidebar } from "./AdminDashboard";
 import { crmService } from "@/services/crm.service";
 import {
@@ -10,11 +11,13 @@ import { PartnerDetailDialog } from "@/components/dashboard/PartnerDetailDialog"
 import { CrmMarket } from "@/features/crm/types/crm.types";
 import { UserAvatar } from "@/components/UserAvatar";
 import { getDisplayName } from "@/lib/userDisplay";
+import { liveQueryOptions } from "@/lib/liveQuery";
 import { cn } from "@/lib/utils";
 import { ChevronRight } from "lucide-react";
 
 const AdminPartners = () => {
-  const [roleTab, setRoleTab] = useState<"seller" | "agent">("seller");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const roleTab = searchParams.get("role") === "agent" ? "agent" : "seller";
   const [selectedPartnerId, setSelectedPartnerId] = useState<string | null>(null);
   const [partnerDialogOpen, setPartnerDialogOpen] = useState(false);
   const [selectedBuyerId, setSelectedBuyerId] = useState<string | null>(null);
@@ -23,15 +26,18 @@ const AdminPartners = () => {
   const { data: sellersData } = useQuery({
     queryKey: ["crm-partners", "seller"],
     queryFn: () => crmService.partners("seller"),
+    ...liveQueryOptions,
   });
   const { data: agentsData } = useQuery({
     queryKey: ["crm-partners", "agent"],
     queryFn: () => crmService.partners("agent"),
+    ...liveQueryOptions,
   });
 
   const { data: partnersData, isLoading } = useQuery({
     queryKey: ["crm-partners", roleTab],
     queryFn: () => crmService.partners(roleTab),
+    ...liveQueryOptions,
   });
 
   const { data: partnerDetail, isLoading: detailLoading } = useQuery({
@@ -82,7 +88,7 @@ const AdminPartners = () => {
           tabs={partnerRoleTabs(sellerCount, agentCount)}
           activeKey={roleTab}
           onChange={(key) => {
-            setRoleTab(key as "seller" | "agent");
+            setSearchParams(key === "seller" ? {} : { role: key }, { replace: true });
             setSelectedPartnerId(null);
             setPartnerDialogOpen(false);
           }}

@@ -10,7 +10,7 @@ import { useSocket } from "@/context/SocketContext";
 import { Message, User } from "@/types/models";
 import { toast } from "sonner";
 import { AgentProfileDialog } from "@/components/AgentProfileDialog";
-import { useUserIdConversationDeepLink } from "@/hooks/useUserIdConversationDeepLink";
+import { useUserIdConversationDeepLink, findSelectedConversation } from "@/hooks/useUserIdConversationDeepLink";
 
 const BuyerMessages = () => {
   const queryClient = useQueryClient();
@@ -33,7 +33,7 @@ const BuyerMessages = () => {
     if (conv) setSelectedConversation(conv);
   }, [searchParams]);
 
-  useUserIdConversationDeepLink({
+  const openedConversation = useUserIdConversationDeepLink({
     conversationsQueryKey: ["buyer-conversations"],
     messagesPath: "/buyer/messages",
     selectedConversation,
@@ -57,6 +57,11 @@ const BuyerMessages = () => {
     onSuccess: (response) => {
       const conversationId = response.data._id;
       setSelectedConversation(conversationId);
+      queryClient.setQueryData(["buyer-conversations"], (prev: { data?: typeof conversations } | undefined) => {
+        const list = prev?.data || [];
+        if (list.some((item) => String(item._id) === String(conversationId))) return prev;
+        return { ...(prev || {}), data: [response.data, ...list] };
+      });
       queryClient.invalidateQueries({ queryKey: ["buyer-conversations"] });
       navigate(`/buyer/messages?conversation=${conversationId}`, { replace: true });
       if (response.contactedRole === "agent") {
@@ -76,7 +81,9 @@ const BuyerMessages = () => {
     propertyConversationMutation.mutate(propertyIdParam);
   }, [propertyIdParam, selectedConversation]);
 
-  const selectedConv = conversations.find((c) => c._id === selectedConversation) || null;
+  const selectedConv =
+    findSelectedConversation(conversations, selectedConversation, openedConversation) ||
+    findSelectedConversation(conversations, selectedConversation, propertyConversationMutation.data?.data);
 
   const { data: messagesData, isLoading: messagesLoading } = useQuery({
     queryKey: ["conversation-messages", selectedConversation],
@@ -160,7 +167,9 @@ const BuyerMessages = () => {
   };
 
   const getParticipant = (conversationId?: string) => {
-    const conv = conversations.find((c) => c._id === conversationId);
+    const conv =
+      conversations.find((c) => String(c._id) === String(conversationId)) ||
+      (String(selectedConv?._id) === String(conversationId) ? selectedConv : null);
     return conv?.participants.find((p) => (p._id || p.id) !== (user?._id || user?.id));
   };
 

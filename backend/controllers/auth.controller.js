@@ -11,7 +11,7 @@ import crypto from 'crypto';
 // @route   POST /api/auth/register
 // @access  Public
 export const register = asyncHandler(async (req, res) => {
-  const { email, password, role, firstName, lastName, phone } = req.body;
+  const { email, password, role, firstName, lastName, phone, avatar } = req.body;
   const normalizedRole = (role || "buyer").toLowerCase();
   const normalizedEmail = (email || "").toLowerCase().trim();
 
@@ -40,7 +40,14 @@ export const register = asyncHandler(async (req, res) => {
     });
   }
 
-  // Create user with profile picture from registration name
+  const safeAvatar =
+    typeof avatar === "string" &&
+    avatar.length <= 500 &&
+    (avatar.startsWith("https://") || avatar.startsWith("http://") || avatar.startsWith("/uploads/"))
+      ? avatar.trim()
+      : "";
+
+  // Create user with optional profile picture, otherwise a generated avatar
   const user = await User.create({
     email: normalizedEmail,
     password,
@@ -48,7 +55,8 @@ export const register = asyncHandler(async (req, res) => {
     firstName,
     lastName,
     phone,
-    avatar: buildDefaultAvatar({ firstName, lastName, email: normalizedEmail }),
+    avatar: safeAvatar || buildDefaultAvatar({ firstName, lastName, email: normalizedEmail }),
+    ...(normalizedRole === "agent" ? { agentProfile: { verified: false } } : {}),
   });
 
   // Generate token

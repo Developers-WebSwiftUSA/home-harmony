@@ -1,4 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
+import { Link } from "react-router-dom";
 import {
   Dialog,
   DialogContent,
@@ -155,6 +156,36 @@ export const AgentProfileDialog = ({ agentId, open, onOpenChange }: Props) => {
                 <div className="flex items-center gap-2 text-muted-foreground">
                   <MapPin className="w-4 h-4" /> {locationLabel}
                 </div>
+              )}
+            </div>
+
+            <div className="mt-6 pt-6 border-t border-border">
+              <h3 className="text-lg font-heading font-bold text-foreground mb-4">Properties</h3>
+              {(profile.properties || []).length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4 text-center bg-muted rounded-lg">
+                  No active listings for this agent yet.
+                </p>
+              ) : (
+                <div className="space-y-2">
+                  {(profile.properties || []).slice(0, 6).map((prop) => (
+                    <Link
+                      key={prop._id}
+                      to={prop.listingType === "rent" || prop.listingType === "both" ? `/rentals/${prop._id}` : `/properties/${prop._id}`}
+                      className="block p-3 bg-muted rounded-lg hover:bg-muted/80"
+                    >
+                      <p className="text-sm font-medium text-foreground truncate">{prop.title}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {[prop.location?.city, prop.location?.state].filter(Boolean).join(", ")}
+                        {prop.price != null ? ` · $${Number(prop.price).toLocaleString()}` : ""}
+                      </p>
+                    </Link>
+                  ))}
+                </div>
+              )}
+              {agentId && (
+                <Link to={`/agents/${agentId}`} className="inline-block mt-3 text-sm text-primary hover:underline">
+                  View full profile →
+                </Link>
               )}
             </div>
 

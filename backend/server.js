@@ -28,6 +28,7 @@ import analyticsRoutes from './routes/analytics.routes.js';
 import rentalApplicationRoutes from './routes/rentalApplication.routes.js';
 import crmRoutes from './routes/crm.routes.js';
 import adCampaignRoutes from './routes/adCampaign.routes.js';
+import newsRoutes from './routes/news.routes.js';
 
 dotenv.config({ path: repoRootEnv });
 dotenv.config();
@@ -128,6 +129,7 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/rental-applications', rentalApplicationRoutes);
 app.use('/api/crm', crmRoutes);
 app.use('/api/ad-campaigns', adCampaignRoutes);
+app.use('/api/news', newsRoutes);
 
 const serveFrontend = fs.existsSync(frontendIndex);
 

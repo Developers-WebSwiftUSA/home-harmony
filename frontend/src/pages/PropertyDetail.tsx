@@ -294,6 +294,33 @@ const PropertyDetail = () => {
                 {contactUser ? (
                   <>
                     <div className="flex items-center gap-3 mb-4">
+                      {assignedAgent && propertyContact?.userId ? (
+                        <Link to={`/agents/${propertyContact.userId}`} className="flex items-center gap-3 min-w-0 hover:opacity-90">
+                          {contactUser.avatar ? (
+                            <img src={contactUser.avatar} alt={contactUser.firstName || "User"} className="w-14 h-14 rounded-full object-cover" />
+                          ) : (
+                            <div className="w-14 h-14 rounded-full bg-primary/10 flex items-center justify-center">
+                              <span className="text-primary font-bold text-lg">
+                                {contactUser.firstName?.[0]?.toUpperCase() || contactUser.email?.[0]?.toUpperCase() || "U"}
+                              </span>
+                            </div>
+                          )}
+                          <div>
+                            <div className="font-bold text-foreground">
+                              {contactUser.firstName && contactUser.lastName
+                                ? `${contactUser.firstName} ${contactUser.lastName}`
+                                : contactUser.email || "User"}
+                            </div>
+                            <div className="text-xs text-muted-foreground capitalize">
+                              {contactUser.role || "User"}
+                            </div>
+                            <div className="mt-2">
+                              <RatingStars rating={getAgentRating(contactUser)} size="xs" />
+                            </div>
+                          </div>
+                        </Link>
+                      ) : (
+                        <>
                       {contactUser.avatar ? (
                         <img src={contactUser.avatar} alt={contactUser.firstName || "User"} className="w-14 h-14 rounded-full object-cover" />
                       ) : (
@@ -312,12 +339,9 @@ const PropertyDetail = () => {
                         <div className="text-xs text-muted-foreground capitalize">
                           {contactUser.role || "User"}
                         </div>
-                        {assignedAgent && (
-                          <div className="mt-2">
-                            <RatingStars rating={getAgentRating(contactUser)} size="xs" />
-                          </div>
-                        )}
                       </div>
+                        </>
+                      )}
                     </div>
                     {contactUser.phone && (
                       <div className="space-y-2 mb-4">

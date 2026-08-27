@@ -43,7 +43,11 @@ export const getUsers = asyncHandler(async (req, res) => {
 // @route   GET /api/users/agents/public
 // @access  Public
 export const getPublicAgents = asyncHandler(async (req, res) => {
-  const agents = await User.find({ role: 'agent', status: 'active' })
+  const agents = await User.find({
+    role: 'agent',
+    status: 'active',
+    'agentProfile.verified': true,
+  })
     .select('firstName lastName email phone avatar agentProfile location')
     .sort({ 'agentProfile.rating.average': -1, firstName: 1 });
 
@@ -83,9 +87,9 @@ export const getActiveAgents = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Get public agent profile with ratings and reviews
+// @desc    Get public agent profile with ratings, reviews, and listings
 // @route   GET /api/users/agents/:id/profile
-// @access  Private
+// @access  Public
 export const getAgentPublicProfile = asyncHandler(async (req, res) => {
   const agent = await User.findOne({
     _id: req.params.id,
@@ -109,10 +113,20 @@ export const getAgentPublicProfile = asyncHandler(async (req, res) => {
     .sort({ 'feedback.submittedAt': -1 })
     .limit(25);
 
-  const assignedProperties = await Property.countDocuments({
-    agentId: agent._id,
-    status: { $in: ['active', 'pending', 'sold', 'rented'] }
-  });
+  const [assignedProperties, properties] = await Promise.all([
+    Property.countDocuments({
+      agentId: agent._id,
+      status: { $in: ['active', 'pending', 'sold', 'rented'] }
+    }),
+    Property.find({
+      agentId: agent._id,
+      status: 'active',
+      viewershipEnabled: { $ne: false },
+    })
+      .select('title location images price bedrooms bathrooms squareFeet listingType status rating rentalDetails featured promotion promotionPriority')
+      .sort({ createdAt: -1 })
+      .limit(24),
+  ]);
 
   const reviews = tours.map((tour) => ({
     _id: tour._id,
@@ -150,6 +164,7 @@ export const getAgentPublicProfile = asyncHandler(async (req, res) => {
       averageRating,
       reviewCount,
       assignedProperties,
+      properties,
       reviews
     }
   });
@@ -295,7 +310,11 @@ export const verifyAgent = asyncHandler(async (req, res) => {
     });
   }
 
-  user.agentProfile.verified = true;
+  if (!user.agentProfile) {
+    user.agentProfile = { verified: true };
+  } else {
+    user.agentProfile.verified = true;
+  }
   await user.save();
 
   res.status(200).json({

@@ -1,10 +1,18 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { Link, useLocation, useNavigate, useSearchParams } from "react-router-dom";
-import { Mail, Lock, Eye, EyeOff, User, Phone } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, User, Phone, Camera } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { UserRole } from "@/types/models";
 import { toast } from "sonner";
+import { uploadService } from "@/services/upload.service";
+import { userService } from "@/services/user.service";
+import { cn } from "@/lib/utils";
+import { buildUserChatPath, rewriteMessagesPathForRole } from "@/lib/chatRoutes";
+
+const AVATAR_PRESETS = ["Felix", "Aneka", "Midnight", "Lucky", "Riley", "Sam", "Jordan", "Quinn"].map(
+  (seed) => `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}`
+);
 
 const roleHomePath = (role?: string) => {
   if (role === "admin") return "/admin";
@@ -27,9 +35,10 @@ const Login = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const [searchParams] = useSearchParams();
-  const { login, register } = useAuth();
+  const { login, register, updateUser } = useAuth();
   const redirectTo = searchParams.get("redirect");
   const chatProperty = searchParams.get("chatProperty");
+  const chatUser = searchParams.get("chatUser");
   const fromState = (location.state as { from?: { pathname?: string; search?: string } } | null)?.from;
   const fromPath =
     fromState?.pathname != null
@@ -47,12 +56,20 @@ const Login = () => {
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [avatarFile, setAvatarFile] = useState<File | null>(null);
+  const [avatarPreview, setAvatarPreview] = useState("");
+  const [selectedPreset, setSelectedPreset] = useState("");
 
   const redirectByRole = (nextRole?: string) => {
     navigate(roleHomePath(nextRole || role));
   };
 
   const redirectAfterAuth = (nextRole?: string) => {
+    if (chatUser) {
+      navigate(buildUserChatPath(chatUser, nextRole));
+      return;
+    }
+
     if (chatProperty) {
       if (nextRole !== "buyer") {
         toast.error("Log in as a buyer to chat about this property");
@@ -65,6 +82,11 @@ const Login = () => {
 
     const target = redirectTo || fromPath;
     if (target) {
+      const messagesPath = rewriteMessagesPathForRole(target, nextRole);
+      if (messagesPath) {
+        navigate(messagesPath);
+        return;
+      }
       if (isAllowedRedirect(target, nextRole)) {
         navigate(target);
         return;
@@ -74,6 +96,33 @@ const Login = () => {
       });
     }
     redirectByRole(nextRole);
+  };
+
+  const generatedAvatar = useMemo(() => {
+    const seed = encodeURIComponent(
+      `${form.firstName} ${form.lastName}`.trim() || form.email || "user"
+    );
+    return `https://api.dicebear.com/7.x/avataaars/svg?seed=${seed}`;
+  }, [form.firstName, form.lastName, form.email]);
+
+  const previewSrc = avatarPreview || selectedPreset || generatedAvatar;
+
+  useEffect(() => {
+    return () => {
+      if (avatarPreview.startsWith("blob:")) URL.revokeObjectURL(avatarPreview);
+    };
+  }, [avatarPreview]);
+
+  const handleAvatarFile = (file?: File) => {
+    if (avatarPreview.startsWith("blob:")) URL.revokeObjectURL(avatarPreview);
+    if (!file) {
+      setAvatarFile(null);
+      setAvatarPreview("");
+      return;
+    }
+    setAvatarFile(file);
+    setSelectedPreset("");
+    setAvatarPreview(URL.createObjectURL(file));
   };
 
   const handleSubmit = async (e: FormEvent) => {
@@ -89,7 +138,19 @@ const Login = () => {
           firstName: form.firstName,
           lastName: form.lastName,
           phone: form.phone,
+          avatar: avatarFile ? undefined : selectedPreset || undefined,
         });
+        if (avatarFile) {
+          try {
+            const uploaded = await uploadService.uploadImage(avatarFile);
+            if (uploaded.data?.url) {
+              const updated = await userService.update("me", { avatar: uploaded.data.url });
+              if (updated.data) updateUser(updated.data);
+            }
+          } catch {
+            toast.error("Account created, but the profile photo could not be uploaded.");
+          }
+        }
         redirectAfterAuth(user.role);
       } else {
         const user = await login(form.email, form.password);
@@ -126,6 +187,58 @@ const Login = () => {
           <form className="space-y-4" onSubmit={handleSubmit}>
             {isRegister && (
               <>
+                <div className="flex flex-col items-center gap-3 pb-2">
+                  <div className="relative">
+                    <img
+                      src={previewSrc}
+                      alt="Profile preview"
+                      className="w-20 h-20 rounded-full object-cover border-2 border-border bg-muted"
+                    />
+                    <label className="absolute -bottom-1 -right-1 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center cursor-pointer shadow-sm">
+                      <Camera className="w-4 h-4" />
+                      <input
+                        type="file"
+                        accept="image/*"
+                        className="sr-only"
+                        onChange={(e) => handleAvatarFile(e.target.files?.[0])}
+                      />
+                    </label>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs font-medium text-foreground">Profile photo</p>
+                    <p className="text-[11px] text-muted-foreground">Optional — upload a picture or pick an avatar</p>
+                  </div>
+                  <div className="flex flex-wrap justify-center gap-2">
+                    {AVATAR_PRESETS.map((url) => (
+                      <button
+                        key={url}
+                        type="button"
+                        onClick={() => {
+                          handleAvatarFile();
+                          setSelectedPreset(url);
+                        }}
+                        className={cn(
+                          "w-9 h-9 rounded-full overflow-hidden border-2 transition-all",
+                          selectedPreset === url ? "border-primary ring-2 ring-primary/30" : "border-transparent hover:border-border"
+                        )}
+                      >
+                        <img src={url} alt="" className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                  {(avatarFile || selectedPreset) && (
+                    <button
+                      type="button"
+                      className="text-[11px] text-muted-foreground hover:text-foreground"
+                      onClick={() => {
+                        handleAvatarFile();
+                        setSelectedPreset("");
+                      }}
+                    >
+                      Use default avatar
+                    </button>
+                  )}
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <label className="text-xs font-medium text-muted-foreground mb-1 block">First Name</label>

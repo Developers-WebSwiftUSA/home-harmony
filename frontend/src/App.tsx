@@ -13,9 +13,11 @@ import Index from "./pages/Index";
 import Properties from "./pages/Properties";
 import PropertyDetail from "./pages/PropertyDetail";
 import Agents from "./pages/Agents";
+import AgentDetail from "./pages/AgentDetail";
 import Contact from "./pages/Contact";
 import ContactAgent from "./pages/ContactAgent";
 import News from "./pages/News";
+import NewsDetail from "./pages/NewsDetail";
 import Login from "./pages/Login";
 import ForgotPassword from "./pages/ForgotPassword";
 import AdminDashboard from "./pages/AdminDashboard";
@@ -67,6 +69,7 @@ import BuyerCrm from "./pages/BuyerCrm";
 import AdminPartners from "./pages/AdminPartners";
 import AdCampaigns from "./pages/AdCampaigns";
 import AdminAdCampaigns from "./pages/AdminAdCampaigns";
+import AdminNews from "./pages/AdminNews";
 import { WelcomeIntentDialog } from "./components/landing/WelcomeIntentDialog";
 import { GlobalPageHelp } from "./features/help/components/GlobalPageHelp";
 import DashboardHelp from "./pages/DashboardHelp";
@@ -108,9 +111,11 @@ const App = () => (
             <Route path="/rentals" element={<RentalsBrowse />} />
             <Route path="/rentals/:id" element={<RentalDetail />} />
             <Route path="/agents" element={<Agents />} />
+            <Route path="/agents/:id" element={<AgentDetail />} />
             <Route path="/contact" element={<Contact />} />
             <Route path="/contact-agent" element={<ContactAgent />} />
             <Route path="/news" element={<News />} />
+            <Route path="/news/:slug" element={<NewsDetail />} />
             <Route path="/login" element={<Login />} />
             <Route path="/forgot-password" element={<ForgotPassword />} />
 
@@ -128,6 +133,7 @@ const App = () => (
             <Route path="/admin/messages" element={<ProtectedRoute roles={["admin"]}><AdminMessages /></ProtectedRoute>} />
             <Route path="/admin/partners" element={<ProtectedRoute roles={["admin"]}><AdminPartners /></ProtectedRoute>} />
             <Route path="/admin/ad-campaigns" element={<ProtectedRoute roles={["admin"]}><AdminAdCampaigns /></ProtectedRoute>} />
+            <Route path="/admin/news" element={<ProtectedRoute roles={["admin"]}><AdminNews /></ProtectedRoute>} />
             <Route path="/admin/settings" element={<ProtectedRoute roles={["admin"]}><AdminSettings /></ProtectedRoute>} />
             <Route path="/admin/help" element={<ProtectedRoute roles={["admin"]}><DashboardHelp role="admin" /></ProtectedRoute>} />
 

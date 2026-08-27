@@ -21,6 +21,7 @@ export const authService = {
     firstName?: string;
     lastName?: string;
     phone?: string;
+    avatar?: string;
   }) =>
     apiRequest<ApiResponse<AuthPayload>>("/auth/register", {
       method: "POST",

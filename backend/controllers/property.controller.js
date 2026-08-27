@@ -62,6 +62,7 @@ export const getProperties = asyncHandler(async (req, res) => {
     zipCode,
     search,
     featured,
+    agentId,
     petsAllowed,
     furnished,
     laundry,
@@ -115,6 +116,7 @@ export const getProperties = asyncHandler(async (req, res) => {
   }
 
   if (featured) query.featured = featured === 'true';
+  if (agentId) query.agentId = agentId;
 
   const locationClauses = [];
 

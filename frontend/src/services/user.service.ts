@@ -37,5 +37,11 @@ export const userService = {
       method: "DELETE",
       auth: true,
     }),
+
+  verify: (id: string) =>
+    apiRequest<ApiResponse<User>>(`/users/${id}/verify`, {
+      method: "PUT",
+      auth: true,
+    }),
 };
 

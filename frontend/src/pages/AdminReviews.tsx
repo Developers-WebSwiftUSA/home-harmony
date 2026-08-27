@@ -4,6 +4,7 @@ import { DashboardSidebar } from "./AdminDashboard";
 import { tourService } from "@/services/tour.service";
 import { useAuth } from "@/context/AuthContext";
 import { TourReviewsList } from "@/components/TourReviewsList";
+import { liveQueryOptions } from "@/lib/liveQuery";
 
 const AdminReviews = () => {
   const { isAuthenticated } = useAuth();
@@ -11,6 +12,7 @@ const AdminReviews = () => {
     queryKey: ["admin-reviews"],
     queryFn: () => tourService.listReviews({ limit: 500 }),
     enabled: isAuthenticated,
+    ...liveQueryOptions,
   });
 
   const tours = data?.data || [];

@@ -1,4 +1,5 @@
 import { Button } from "@/components/ui/button";
+import { Link } from "react-router-dom";
 import advisorsBg from "@/assets/advisors-bg.jpg";
 
 const stats = [
@@ -33,7 +34,9 @@ const AdvisorsSection = () => {
                 Friendly fast & free support
               </div>
             </div>
-            <Button className="px-8">Discover More</Button>
+            <Link to="/agents">
+              <Button className="px-8">Discover More</Button>
+            </Link>
 
             <div className="flex gap-12 mt-10">
               {stats.map((stat) => (

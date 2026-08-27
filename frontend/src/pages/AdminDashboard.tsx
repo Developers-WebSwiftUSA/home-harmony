@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Users, Home, Calendar, CalendarCheck, BarChart3, Shield, Bell, MessageSquare, Settings, LogOut, CheckCircle, XCircle, Clock, Eye, KeyRound, Heart, Star, Bookmark, Search, FileText, UserCheck, Megaphone, HelpCircle } from "lucide-react";
+import { LayoutDashboard, Users, Home, Calendar, CalendarCheck, BarChart3, Shield, Bell, MessageSquare, Settings, LogOut, Eye, KeyRound, Heart, Star, Bookmark, Search, FileText, UserCheck, Megaphone, HelpCircle, Newspaper } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import property1 from "@/assets/property-1.jpg";
@@ -15,6 +15,7 @@ import { crmService } from "@/services/crm.service";
 import { formatOverviewValue, getTrend } from "@/lib/analyticsDisplay";
 import { DashboardTabPills, listingTypeTabs, partnerRoleTabs } from "@/components/dashboard/DashboardTabPills";
 import { isRentalListing } from "@/features/rentals/lib/rentalFormat";
+import { liveQueryOptions } from "@/lib/liveQuery";
 
 const pendingProperties = [
   { id: 1, title: "Luxury Villa in Miami", seller: "John Smith", image: property1, submitted: "2 hours ago" },
@@ -43,6 +44,7 @@ const DashboardSidebar = ({ active, role }: { active: string; role: string }) =>
       { icon: UserCheck, label: "Partners", href: "/admin/partners" },
       { icon: Home, label: "Properties", href: "/admin/properties" },
       { icon: Megaphone, label: "Ad Campaigns", href: "/admin/ad-campaigns" },
+      { icon: Newspaper, label: "News", href: "/admin/news" },
       { icon: Calendar, label: "Tours", href: "/admin/tours" },
       { icon: Star, label: "Feedback", href: "/admin/reviews" },
       { icon: BarChart3, label: "Analytics", href: "/admin/analytics" },
@@ -141,37 +143,44 @@ const AdminDashboard = () => {
   const { user, isAuthenticated } = useAuth();
   const { data: usersData } = useQuery({
     queryKey: ["admin-dashboard-users"],
-    queryFn: () => userService.list({ limit: 200 }),
+    queryFn: () => userService.list({ limit: 500 }),
     enabled: isAuthenticated,
+    ...liveQueryOptions,
   });
   const { data: propertiesData } = useQuery({
     queryKey: ["admin-dashboard-properties"],
-    queryFn: () => propertyService.list({ status: "" }),
+    queryFn: () => propertyService.list({ limit: 500 }),
+    ...liveQueryOptions,
   });
   const { data: toursData } = useQuery({
     queryKey: ["admin-dashboard-tours"],
-    queryFn: () => tourService.list({ limit: 200 }),
+    queryFn: () => tourService.list({ limit: 1000 }),
     enabled: isAuthenticated,
+    ...liveQueryOptions,
   });
   const { data: reviewsData } = useQuery({
     queryKey: ["admin-dashboard-reviews"],
-    queryFn: () => tourService.listReviews({ limit: 10 }),
+    queryFn: () => tourService.listReviews({ limit: 500 }),
     enabled: isAuthenticated,
+    ...liveQueryOptions,
   });
   const { data: analyticsData } = useQuery({
     queryKey: ["admin-dashboard-analytics"],
     queryFn: () => analyticsService.admin(),
     enabled: isAuthenticated,
+    ...liveQueryOptions,
   });
   const { data: sellersData } = useQuery({
     queryKey: ["crm-partners", "seller"],
     queryFn: () => crmService.partners("seller"),
     enabled: isAuthenticated,
+    ...liveQueryOptions,
   });
   const { data: agentsData } = useQuery({
     queryKey: ["crm-partners", "agent"],
     queryFn: () => crmService.partners("agent"),
     enabled: isAuthenticated,
+    ...liveQueryOptions,
   });
 
   const users = usersData?.data || [];
@@ -179,6 +188,13 @@ const AdminDashboard = () => {
   const tours = toursData?.data || [];
   const recentReviews = reviewsData?.data || [];
   const overviewIcons = [Users, Home, Calendar, Star];
+
+  const overviewHrefs: Record<string, string> = {
+    "Total Users": "/admin/users",
+    "Active Listings": "/admin/properties?tab=active",
+    "Scheduled Tours": "/admin/tours",
+    "Tour Reviews": "/admin/reviews",
+  };
 
   const dashboardStats = analyticsData?.data?.overview?.length
     ? analyticsData.data.overview.map((item, index) => {
@@ -188,22 +204,25 @@ const AdminDashboard = () => {
           label: item.label,
           value: formatOverviewValue(item),
           change: changeLabel,
+          href: overviewHrefs[item.label] || "/admin",
         };
       })
     : [
-        { icon: Users, label: "Total Users", value: users.length.toLocaleString(), change: "0%" },
+        { icon: Users, label: "Total Users", value: users.length.toLocaleString(), change: "0%", href: "/admin/users" },
         {
           icon: Home,
           label: "Active Listings",
           value: properties.filter((p) => p.status === "active").length.toLocaleString(),
           change: "0%",
+          href: "/admin/properties?tab=active",
         },
-        { icon: Calendar, label: "Scheduled Tours", value: tours.length.toLocaleString(), change: "0%" },
+        { icon: Calendar, label: "Scheduled Tours", value: tours.length.toLocaleString(), change: "0%", href: "/admin/tours" },
         {
           icon: Star,
           label: "Tour Reviews",
           value: (reviewsData?.total ?? recentReviews.length).toLocaleString(),
           change: "0%",
+          href: "/admin/reviews",
         },
       ];
 
@@ -221,6 +240,7 @@ const AdminDashboard = () => {
 
   const newestUsers =
     users.slice(0, 5).map((u) => ({
+      id: u._id || u.id,
       name: getDisplayName(u),
       role: u.role?.charAt(0).toUpperCase() + u.role?.slice(1),
       email: u.email,
@@ -259,7 +279,11 @@ const AdminDashboard = () => {
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           {dashboardStats.map((stat) => (
-            <div key={stat.label} className="bg-card border border-border rounded-xl p-5">
+            <Link
+              key={stat.label}
+              to={stat.href}
+              className="bg-card border border-border rounded-xl p-5 hover:border-primary/40 hover:shadow-sm transition-all"
+            >
               <div className="flex items-center justify-between mb-3">
                 <div className="w-10 h-10 rounded-lg bg-primary/10 flex items-center justify-center">
                   <stat.icon className="w-5 h-5 text-primary" />
@@ -272,7 +296,7 @@ const AdminDashboard = () => {
               </div>
               <div className="text-2xl font-bold text-foreground">{stat.value}</div>
               <div className="text-xs text-muted-foreground">{stat.label}</div>
-            </div>
+            </Link>
           ))}
         </div>
 
@@ -292,7 +316,7 @@ const AdminDashboard = () => {
             variant="card"
             tabs={partnerRoleTabs(sellerPartnerCount, agentPartnerCount)}
             activeKey="seller"
-            onChange={() => navigate("/admin/partners")}
+            onChange={(key) => navigate(`/admin/partners?role=${key}`)}
             className="mb-2"
           />
           <Link to="/admin/partners" className="block mt-2">
@@ -308,7 +332,13 @@ const AdminDashboard = () => {
             variant="card"
             tabs={listingTypeTabs(properties.length, saleListingCount, rentListingCount)}
             activeKey="all"
-            onChange={() => navigate("/admin/properties")}
+            onChange={(key) =>
+              navigate(
+                key === "all"
+                  ? "/admin/properties?tab=all"
+                  : `/admin/properties?tab=all&listingType=${key}`
+              )
+            }
           />
         </div>
 
@@ -317,23 +347,32 @@ const AdminDashboard = () => {
           <div className="bg-card border border-border rounded-xl p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-heading font-bold text-foreground">Pending Moderation</h2>
-              <span className="bg-primary/10 text-primary text-xs font-semibold px-2 py-0.5 rounded-full">2 pending</span>
+              <Link
+                to="/admin/properties?tab=pending"
+                className="bg-primary/10 text-primary text-xs font-semibold px-2 py-0.5 rounded-full hover:bg-primary/20"
+              >
+                {properties.filter((p) => p.status === "pending").length} pending
+              </Link>
             </div>
             <div className="space-y-4">
-              {moderationItems.map((prop) => (
-                <div key={prop.id} className="flex items-center gap-4 p-3 bg-muted rounded-lg">
-                  <img src={prop.image} alt={prop.title} className="w-16 h-12 rounded-md object-cover" />
-                  <div className="flex-1 min-w-0">
-                    <div className="font-medium text-foreground text-sm truncate">{prop.title}</div>
-                    <div className="text-xs text-muted-foreground">By {prop.seller} · {prop.submitted}</div>
-                  </div>
-                  <div className="flex gap-1">
-                    <button className="p-1.5 rounded-md hover:bg-green-100 transition-colors"><CheckCircle className="w-4 h-4 text-green-600" /></button>
-                    <button className="p-1.5 rounded-md hover:bg-red-100 transition-colors"><XCircle className="w-4 h-4 text-destructive" /></button>
-                    <button className="p-1.5 rounded-md hover:bg-card transition-colors"><Eye className="w-4 h-4 text-muted-foreground" /></button>
-                  </div>
-                </div>
-              ))}
+              {moderationItems.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-4 text-center">No listings waiting for review</p>
+              ) : (
+                moderationItems.map((prop) => (
+                  <Link
+                    key={prop.id}
+                    to={`/admin/properties/${prop.id}`}
+                    className="flex items-center gap-4 p-3 bg-muted rounded-lg hover:bg-muted/80"
+                  >
+                    <img src={prop.image} alt={prop.title} className="w-16 h-12 rounded-md object-cover" />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-foreground text-sm truncate">{prop.title}</div>
+                      <div className="text-xs text-muted-foreground">By {prop.seller} · {prop.submitted}</div>
+                    </div>
+                    <Eye className="w-4 h-4 text-muted-foreground" />
+                  </Link>
+                ))
+              )}
             </div>
           </div>
 
@@ -350,7 +389,11 @@ const AdminDashboard = () => {
             ) : (
               <div className="space-y-3">
                 {recentReviews.slice(0, 5).map((tour) => (
-                  <div key={tour._id} className="p-3 bg-muted rounded-lg">
+                  <Link
+                    key={tour._id}
+                    to={`/admin/tours/${tour._id}`}
+                    className="block p-3 bg-muted rounded-lg hover:bg-muted/80"
+                  >
                     <div className="font-medium text-foreground text-sm truncate">
                       {tour.propertyId?.title || "Property"}
                     </div>
@@ -360,7 +403,7 @@ const AdminDashboard = () => {
                       {" · "}
                       {tour.buyerId?.firstName || tour.buyerId?.email || "Buyer"}
                     </div>
-                  </div>
+                  </Link>
                 ))}
               </div>
             )}
@@ -376,7 +419,11 @@ const AdminDashboard = () => {
             </div>
             <div className="space-y-3">
               {newestUsers.map((listedUser) => (
-                <div key={listedUser.email} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                <Link
+                  key={listedUser.email}
+                  to={listedUser.id ? `/admin/users/${listedUser.id}` : "/admin/users"}
+                  className="flex items-center justify-between p-3 bg-muted rounded-lg hover:bg-muted/80"
+                >
                   <div className="flex items-center gap-3">
                     {listedUser.avatar ? (
                       <img
@@ -400,7 +447,7 @@ const AdminDashboard = () => {
                       {listedUser.status}
                     </span>
                   </div>
-                </div>
+                </Link>
               ))}
             </div>
           </div>

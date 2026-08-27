@@ -75,7 +75,7 @@ const userSchema = new mongoose.Schema({
   agentProfile: {
     licenseNumber: {
       type: String,
-      required: function() { return this.role === 'agent'; }
+      trim: true
     },
     specialization: [String],
     yearsOfExperience: Number,

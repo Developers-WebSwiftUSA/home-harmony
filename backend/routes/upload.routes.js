@@ -5,7 +5,7 @@ import { uploadSingleImage } from "../controllers/upload.controller.js";
 
 const router = express.Router();
 
-router.post("/image", protect, authorize("seller", "agent", "admin"), uploadImage, uploadSingleImage);
+router.post("/image", protect, authorize("buyer", "seller", "agent", "admin"), uploadImage, uploadSingleImage);
 
 export default router;
 

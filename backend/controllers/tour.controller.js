@@ -29,26 +29,42 @@ export const getTours = asyncHandler(async (req, res) => {
   if (sellerId && req.user.role === 'admin') query.sellerId = sellerId;
   if (agentId && req.user.role === 'admin') query.agentId = agentId;
 
-  const tours = await Tour.find(query)
-    .populate('propertyId', 'title location images price')
-    .populate('buyerId', 'firstName lastName email phone')
-    .populate('sellerId', 'firstName lastName email phone')
-    .populate('agentId', 'firstName lastName email phone')
-    .populate('rescheduleHistory.requestedBy', 'firstName lastName email')
-    .populate('rescheduleHistory.approvedBy', 'firstName lastName email')
-    .populate('pendingReschedule.requestedBy', 'firstName lastName email')
-    .sort({ date: 1, startTime: 1 })
-    .limit(limit * 1)
-    .skip((page - 1) * limit);
+  const parsedLimit = Math.min(Math.max(parseInt(limit, 10) || 10, 1), 1000);
+  const parsedPage = Math.max(parseInt(page, 10) || 1, 1);
 
-  const total = await Tour.countDocuments(query);
+  const [tours, total, statusGroups] = await Promise.all([
+    Tour.find(query)
+      .populate('propertyId', 'title location images price')
+      .populate('buyerId', 'firstName lastName email phone')
+      .populate('sellerId', 'firstName lastName email phone')
+      .populate('agentId', 'firstName lastName email phone')
+      .populate('rescheduleHistory.requestedBy', 'firstName lastName email')
+      .populate('rescheduleHistory.approvedBy', 'firstName lastName email')
+      .populate('pendingReschedule.requestedBy', 'firstName lastName email')
+      .sort({ date: 1, startTime: 1 })
+      .limit(parsedLimit)
+      .skip((parsedPage - 1) * parsedLimit),
+    Tour.countDocuments(query),
+    req.user.role === 'admin'
+      ? Tour.aggregate([{ $group: { _id: '$status', count: { $sum: 1 } } }])
+      : Promise.resolve([]),
+  ]);
+
+  const statusCounts = statusGroups.reduce((acc, row) => {
+    if (row._id) acc[row._id] = row.count;
+    return acc;
+  }, {});
+  if (req.user.role === 'admin') {
+    statusCounts.all = statusGroups.reduce((sum, row) => sum + row.count, 0);
+  }
 
   res.status(200).json({
     success: true,
     count: tours.length,
     total,
-    page: parseInt(page),
-    pages: Math.ceil(total / limit),
+    page: parsedPage,
+    pages: Math.ceil(total / parsedLimit),
+    statusCounts,
     data: tours
   });
 });

@@ -17,6 +17,7 @@ type AuthContextType = {
     firstName?: string;
     lastName?: string;
     phone?: string;
+    avatar?: string;
   }) => Promise<User>;
   logout: () => void;
   updateUser: (user: User) => void;
@@ -86,6 +87,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     firstName?: string;
     lastName?: string;
     phone?: string;
+    avatar?: string;
   }) => {
     const response = await authService.register(payload);
     const nextUser = response.data.user;
