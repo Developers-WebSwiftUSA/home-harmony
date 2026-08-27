@@ -49,3 +49,35 @@ export const getCustomerLabel = (campaign?: AdCampaign | null) => {
   }
   return campaign.payment?.cardHolderName || campaign.payment?.billingEmail || "Customer";
 };
+
+const normalizeBillSearch = (value: string) => String(value || "").toLowerCase().trim();
+const compactBillSearch = (value: string) => normalizeBillSearch(value).replace(/[\s-]/g, "");
+
+export const matchesBillSearch = (campaign: AdCampaign, query: string) => {
+  const q = normalizeBillSearch(query);
+  if (!q) return true;
+
+  const requester = campaign.requesterId && typeof campaign.requesterId === "object" ? campaign.requesterId : null;
+  const invoice = invoiceNumber(campaign._id);
+  const nameParts = [
+    getCustomerLabel(campaign),
+    campaign.payment?.cardHolderName,
+    requester?.firstName,
+    requester?.lastName,
+    `${requester?.firstName || ""} ${requester?.lastName || ""}`,
+  ];
+  const emails = [campaign.payment?.billingEmail, requester?.email];
+  const textHit = [...nameParts, ...emails, invoice].some((value) =>
+    normalizeBillSearch(String(value || "")).includes(q)
+  );
+
+  const compactQ = compactBillSearch(query);
+  const compactHit = [invoice, campaign._id, String(campaign._id || "").slice(-8)].some((value) =>
+    compactBillSearch(String(value || "")).includes(compactQ)
+  );
+
+  return textHit || compactHit;
+};
+
+export const searchChargedPayments = (campaigns: AdCampaign[], query: string) =>
+  getChargedPayments(campaigns).filter((campaign) => matchesBillSearch(campaign, query));

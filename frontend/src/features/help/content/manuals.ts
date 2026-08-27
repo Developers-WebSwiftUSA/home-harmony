@@ -240,17 +240,17 @@ export const HELP_MANUALS: Record<string, HelpManual> = {
   "forgot-password": {
     id: "forgot-password",
     title: "Reset Password",
-    summary: "Ask an admin to reset your password.",
+    summary: "Request a password reset link by email.",
     role: "public",
     steps: [
       {
         title: "Submit your email",
-        description: "Enter the email tied to your account. An admin will review the request.",
+        description: "Enter the email tied to your account and submit the reset request.",
         visual: "auth-form",
       },
       {
-        title: "Sign in with the new password",
-        description: "After approval, use the new password from email or from your admin. Change it after you sign in.",
+        title: "Check admin queue",
+        description: "Admins process reset requests from the Password Resets dashboard section.",
       },
     ],
   },
@@ -925,7 +925,7 @@ export const HELP_MANUALS: Record<string, HelpManual> = {
     steps: [
       {
         title: "Filter campaigns",
-        description: "Use the Total, Pending, Active, and Revenue pills to switch views. Revenue lists every charged payment.",
+        description: "Use the Total, Pending, Active, and Revenue pills to switch views. In Revenue, search bills by customer name, email, or bill number.",
         visual: "promotion",
       },
       {
@@ -935,7 +935,7 @@ export const HELP_MANUALS: Record<string, HelpManual> = {
       },
       {
         title: "Customer billing",
-        description: "Click a payment to open that customer’s billing history, then download a House Tour Guide letterhead invoice PDF.",
+        description: "Click a payment to open that customer’s billing history and bill details. Search by name, email, or invoice number (for example HTG-AD-BC123XYZ), then download a House Tour Guide letterhead invoice PDF.",
       },
     ],
   },
@@ -1045,7 +1045,7 @@ export const HELP_MANUALS: Record<string, HelpManual> = {
     steps: [
       {
         title: "Reset queue",
-        description: "Approve a pending request to generate a new password. Copy it if email is not configured, then share it with the user.",
+        description: "Approve or deny reset requests submitted from the Forgot Password page.",
         visual: "table-actions",
       },
     ],

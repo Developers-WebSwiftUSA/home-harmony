@@ -12,9 +12,11 @@ import {
   ArrowLeft,
   Download,
   Receipt,
+  Search,
 } from "lucide-react";
 import { DashboardSidebar } from "./AdminDashboard";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
@@ -39,6 +41,8 @@ import {
   getCustomerPayments,
   invoiceNumber,
   isChargedPayment,
+  matchesBillSearch,
+  searchChargedPayments,
 } from "@/features/ads/lib/campaignBilling";
 import { downloadCampaignInvoicePdf } from "@/features/ads/lib/invoicePdf";
 import { AdCampaign, AdCampaignStatus } from "@/features/ads/types/adCampaign.types";
@@ -73,6 +77,7 @@ const AdminAdCampaigns = () => {
   const [adminNotes, setAdminNotes] = useState("");
   const [rejectionReason, setRejectionReason] = useState("");
   const [reviewMode, setReviewMode] = useState<"approve" | "reject" | null>(null);
+  const [billSearch, setBillSearch] = useState("");
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-ad-campaigns"],
@@ -82,12 +87,22 @@ const AdminAdCampaigns = () => {
 
   const campaigns = data?.data || [];
   const payments = useMemo(() => getChargedPayments(campaigns), [campaigns]);
+  const filteredPayments = useMemo(
+    () => searchChargedPayments(campaigns, billSearch),
+    [campaigns, billSearch]
+  );
   const customerPayments = useMemo(
     () => getCustomerPayments(campaigns, customerKey),
     [campaigns, customerKey]
   );
+  const matchingCustomerPayments = useMemo(
+    () => customerPayments.filter((campaign) => matchesBillSearch(campaign, billSearch)),
+    [customerPayments, billSearch]
+  );
   const selectedBill =
-    customerPayments.find((campaign) => campaign._id === billId) || customerPayments[0] || null;
+    matchingCustomerPayments.find((campaign) => campaign._id === billId) ||
+    matchingCustomerPayments[0] ||
+    null;
 
   const stats = {
     all: campaigns.length,
@@ -135,6 +150,7 @@ const AdminAdCampaigns = () => {
   const setStatusFilter = (value: PillKey) => {
     const next = new URLSearchParams();
     if (value !== "all") next.set("status", value);
+    setBillSearch("");
     setSearchParams(next, { replace: true });
   };
 
@@ -219,6 +235,21 @@ const AdminAdCampaigns = () => {
       toast.error(error instanceof Error ? error.message : "Could not generate invoice PDF");
     }
   };
+
+  const renderBillSearch = () => (
+    <div className="bg-card border border-border rounded-xl p-4 mb-4">
+      <div className="relative">
+        <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+        <Input
+          value={billSearch}
+          onChange={(e) => setBillSearch(e.target.value)}
+          placeholder="Search bills by name, email, or bill number"
+          className="pl-10"
+          aria-label="Search bills by name, email, or bill number"
+        />
+      </div>
+    </div>
+  );
 
   const renderCampaignList = (list: AdCampaign[]) => {
     if (list.length === 0) {
@@ -311,11 +342,19 @@ const AdminAdCampaigns = () => {
     );
   };
 
-  const renderPayments = () => {
+  const renderPayments = (list: AdCampaign[]) => {
     if (payments.length === 0) {
       return (
         <div className="bg-card border border-dashed border-border rounded-xl p-12 text-center text-muted-foreground">
           No payments have been charged yet.
+        </div>
+      );
+    }
+
+    if (list.length === 0) {
+      return (
+        <div className="bg-card border border-dashed border-border rounded-xl p-12 text-center text-muted-foreground">
+          No bills match that name, email, or bill number.
         </div>
       );
     }
@@ -325,11 +364,11 @@ const AdminAdCampaigns = () => {
         <div className="px-5 py-4 border-b border-border">
           <h2 className="font-heading font-bold text-foreground">Payments</h2>
           <p className="text-xs text-muted-foreground mt-1">
-            Every charged promotion. Click a customer to open their billing history.
+            Every charged promotion. Search by customer name, billing email, or bill number, then click a row for bill details.
           </p>
         </div>
         <div className="divide-y divide-border">
-          {payments.map((campaign) => (
+          {list.map((campaign) => (
             <button
               key={campaign._id}
               type="button"
@@ -340,7 +379,8 @@ const AdminAdCampaigns = () => {
                 <div className="min-w-0">
                   <p className="font-medium text-foreground">{getCustomerLabel(campaign)}</p>
                   <p className="text-xs text-muted-foreground mt-0.5">
-                    {campaign.payment?.billingEmail || "No billing email"} · {getCampaignPropertyTitle(campaign)}
+                    {invoiceNumber(campaign._id)} · {campaign.payment?.billingEmail || "No billing email"} ·{" "}
+                    {getCampaignPropertyTitle(campaign)}
                   </p>
                 </div>
                 <div className="text-right">
@@ -440,10 +480,14 @@ const AdminAdCampaigns = () => {
         <div className="bg-card border border-border rounded-xl overflow-hidden">
           <div className="px-5 py-4 border-b border-border">
             <h3 className="font-heading font-bold text-foreground">Billing history</h3>
-            <p className="text-xs text-muted-foreground mt-1">All charged campaigns for this customer.</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              {billSearch.trim()
+                ? "Matching charged campaigns for this customer."
+                : "All charged campaigns for this customer."}
+            </p>
           </div>
           <div className="divide-y divide-border">
-            {customerPayments.map((campaign) => {
+            {matchingCustomerPayments.map((campaign) => {
               const isSelected = campaign._id === selectedBill._id;
               return (
                 <button
@@ -489,7 +533,7 @@ const AdminAdCampaigns = () => {
             Ad Campaigns
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Review promotion requests, click a status to filter, and open charged payments from Revenue.
+            Review promotion requests, click a status to filter, and search Revenue by name, email, or bill number.
           </p>
         </div>
 
@@ -521,10 +565,16 @@ const AdminAdCampaigns = () => {
             <Loader2 className="w-6 h-6 animate-spin mr-2" />
             Loading campaigns...
           </div>
-        ) : statusFilter === "revenue" && customerKey ? (
-          renderBillingHistory()
+        ) : statusFilter === "revenue" && customerKey && (matchingCustomerPayments.length > 0 || !billSearch.trim()) ? (
+          <>
+            {renderBillSearch()}
+            {renderBillingHistory()}
+          </>
         ) : statusFilter === "revenue" ? (
-          renderPayments()
+          <>
+            {payments.length > 0 && renderBillSearch()}
+            {renderPayments(filteredPayments)}
+          </>
         ) : (
           renderCampaignList(visibleCampaigns)
         )}

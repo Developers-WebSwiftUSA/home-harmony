@@ -34,6 +34,34 @@ describe("promotionDisplay", () => {
     expect(getCustomerPayments([charged, pending], "u1")).toHaveLength(1);
   });
 
+  it("searches charged bills by name, email, or invoice number", async () => {
+    const { matchesBillSearch, searchChargedPayments, invoiceNumber } = await import(
+      "@/features/ads/lib/campaignBilling"
+    );
+    const charged = {
+      _id: "abc123xyz",
+      requesterId: { _id: "u1", firstName: "Ann", lastName: "Lee", email: "ann@test.com" },
+      payment: { billingEmail: "ann@test.com", cardHolderName: "Ann Lee", cardLast4: "4242" },
+      paymentStatus: "charged",
+      chargedAmount: 50,
+    } as never;
+    const other = {
+      ...charged,
+      _id: "otherpay9",
+      requesterId: { _id: "u2", firstName: "Ben", lastName: "Cole", email: "ben@test.com" },
+      payment: { billingEmail: "ben@test.com", cardHolderName: "Ben Cole", cardLast4: "1111" },
+    } as never;
+
+    expect(matchesBillSearch(charged, "ann lee")).toBe(true);
+    expect(matchesBillSearch(charged, "ann@test.com")).toBe(true);
+    expect(matchesBillSearch(charged, invoiceNumber("abc123xyz"))).toBe(true);
+    expect(matchesBillSearch(charged, "htg-ad-bc123xyz")).toBe(true);
+    expect(matchesBillSearch(charged, "BC123XYZ")).toBe(true);
+    expect(matchesBillSearch(charged, "ben")).toBe(false);
+    expect(searchChargedPayments([charged, other], "ann")).toHaveLength(1);
+    expect(searchChargedPayments([charged, other], "ben@test.com")).toHaveLength(1);
+  });
+
   it("detects active promotions", () => {
     const future = new Date(Date.now() + 86400000).toISOString();
     const past = new Date(Date.now() - 86400000).toISOString();
