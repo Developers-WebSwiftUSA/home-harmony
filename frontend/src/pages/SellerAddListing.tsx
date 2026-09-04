@@ -5,6 +5,7 @@ import { DashboardSidebar } from "./AdminDashboard";
 import { Button } from "@/components/ui/button";
 import { PropertyLocationPicker } from "@/components/PropertyLocationPicker";
 import { buildListingLocation } from "@/lib/listingLocation";
+import { getPropertyPrimaryImage } from "@/lib/propertyImage";
 import { propertyService } from "@/services/property.service";
 import { uploadService } from "@/services/upload.service";
 import { toast } from "sonner";
@@ -77,7 +78,7 @@ const SellerAddListing = () => {
         ? new Date(existing.availabilityDate).toISOString().slice(0, 10)
         : "",
     });
-    setExistingImageUrl(existing.images?.[0]?.url || "");
+    setExistingImageUrl(getPropertyPrimaryImage(existing.images));
   }, [existing]);
 
   useEffect(() => {

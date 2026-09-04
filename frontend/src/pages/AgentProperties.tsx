@@ -7,6 +7,7 @@ import { DashboardTabPills, listingTypeTabs } from "@/components/dashboard/Dashb
 import { isRentalListing } from "@/features/rentals/lib/rentalFormat";
 import { getPropertyDetailPath } from "@/lib/propertyRoutes";
 import property1 from "@/assets/property-1.jpg";
+import { getPropertyPrimaryImage } from "@/lib/propertyImage";
 import { PropertyViewershipControl } from "@/components/PropertyViewershipControl";
 
 const AgentProperties = () => {
@@ -88,7 +89,7 @@ const AgentProperties = () => {
             <div key={property._id} className="bg-card border border-border rounded-xl p-4 flex gap-4">
               <div className="relative shrink-0">
                 <img
-                  src={property.images?.[0]?.url || property1}
+                  src={getPropertyPrimaryImage(property.images, property1)}
                   alt={property.title}
                   className="w-28 h-20 object-cover rounded-md"
                 />

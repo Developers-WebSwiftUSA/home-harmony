@@ -13,6 +13,7 @@ import { useQuery, useMutation } from "@tanstack/react-query";
 import Navbar from "@/components/landing/Navbar";
 import Footer from "@/components/landing/Footer";
 import property1 from "@/assets/property-1.jpg";
+import { getAllPropertyImageUrls } from "@/lib/propertyImage";
 import { propertyService } from "@/services/property.service";
 import { messageService } from "@/services/message.service";
 import { rentalApplicationService } from "@/services/rentalApplication.service";
@@ -81,13 +82,10 @@ const RentalDetail = () => {
 
   const similar = (similarData?.data || []).filter((p) => p._id !== id).slice(0, 3);
 
-  const images = useMemo(
-    () =>
-      apiProperty?.images?.length
-        ? apiProperty.images.map((img) => img.url)
-        : [property1],
-    [apiProperty]
-  );
+  const images = useMemo(() => {
+    const urls = getAllPropertyImageUrls(apiProperty?.images);
+    return urls.length ? urls : [property1];
+  }, [apiProperty]);
 
   const amenities = useMemo(() => {
     const list = [...(apiProperty?.amenities || [])];

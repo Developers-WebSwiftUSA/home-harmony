@@ -13,11 +13,7 @@ export const resolvePropertyImageUrl = (raw?: string | null): string | null => {
     return url;
   }
 
-  const uploadsMatch = url.match(/\/uploads\/(.+)$/);
-  if (uploadsMatch) {
-    return `${getApiOrigin()}/uploads/${uploadsMatch[1]}`;
-  }
-
+  // Keep absolute URLs as-is so each listing can load its own hosted file.
   if (url.startsWith("http://") || url.startsWith("https://")) {
     return url;
   }
@@ -30,7 +26,17 @@ export const resolvePropertyImageUrl = (raw?: string | null): string | null => {
     return `${getApiOrigin()}/${url}`;
   }
 
+  const uploadsMatch = url.match(/\/uploads\/(.+)$/);
+  if (uploadsMatch) {
+    return `${getApiOrigin()}/uploads/${uploadsMatch[1]}`;
+  }
+
   return url;
+};
+
+const primaryFirst = (images: Array<{ url?: string; isPrimary?: boolean }>) => {
+  const primary = images.find((item) => item.isPrimary && item.url?.trim());
+  return primary ? [primary, ...images.filter((item) => item !== primary)] : images;
 };
 
 const normalizeImages = (images?: ImageEntry[] | null) => {
@@ -41,10 +47,7 @@ const normalizeImages = (images?: ImageEntry[] | null) => {
 };
 
 export const getAllPropertyImageUrls = (images?: ImageEntry[] | null): string[] => {
-  const normalized = normalizeImages(images);
-  const sorted = [...normalized].sort((a, b) => Number(b.isPrimary) - Number(a.isPrimary));
-
-  return sorted
+  return primaryFirst(normalizeImages(images))
     .map((item) => resolvePropertyImageUrl(item.url))
     .filter((url): url is string => Boolean(url));
 };

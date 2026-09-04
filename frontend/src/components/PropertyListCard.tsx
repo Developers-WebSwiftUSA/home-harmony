@@ -7,6 +7,8 @@ import { PetPolicyBadge } from "@/components/PetPolicyBadge";
 import { PetPolicy } from "@/lib/petPolicy";
 import { PromotionBadge } from "@/features/ads/components/PromotionBadge";
 import { PromotionBadgeVariant } from "@/features/ads/lib/promotionDisplay";
+import { PropertyImage } from "@/components/PropertyImage";
+import propertyFallback from "@/assets/property-1.jpg";
 
 type Props = {
   id: string;
@@ -51,9 +53,10 @@ export const PropertyListCard = ({
         className="bg-card rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-shadow flex flex-col md:flex-row md:items-stretch group"
       >
         <div className="relative w-full md:w-72 h-48 md:h-auto md:min-h-[12rem] flex-shrink-0 overflow-hidden">
-          <img
+          <PropertyImage
             src={image}
             alt={title}
+            fallback={propertyFallback}
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
           />
           <PromotionBadge label={badge} variant={badgeVariant} />
@@ -97,9 +100,10 @@ export const PropertyListCard = ({
       className="bg-card rounded-xl overflow-hidden shadow-md hover:shadow-xl transition-shadow duration-300 group h-full flex flex-col"
     >
       <div className="relative h-56 flex-shrink-0 overflow-hidden">
-        <img
+        <PropertyImage
           src={image}
           alt={title}
+          fallback={propertyFallback}
           className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
         />
         <PromotionBadge label={badge} variant={badgeVariant} />

@@ -17,6 +17,7 @@ export const PropertyImage = ({ src, alt, fallback, className }: Props) => {
 
   return (
     <img
+      key={src || fallback}
       src={currentSrc}
       alt={alt}
       className={cn(className)}

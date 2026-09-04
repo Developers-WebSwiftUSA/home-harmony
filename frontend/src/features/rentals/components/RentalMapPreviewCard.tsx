@@ -5,6 +5,7 @@ import { Property } from "@/types/models";
 import { formatRentPrice, getPropertyLocationLabel } from "@/features/rentals/lib/rentalFormat";
 import { PetPolicyBadge } from "@/components/PetPolicyBadge";
 import property1 from "@/assets/property-1.jpg";
+import { getPropertyPrimaryImage } from "@/lib/propertyImage";
 
 type Props = {
   property: Property;
@@ -13,7 +14,7 @@ type Props = {
 export const RentalMapPreviewCard = ({ property }: Props) => (
   <div className="w-[240px]">
     <img
-      src={property.images?.[0]?.url || property1}
+      src={getPropertyPrimaryImage(property.images, property1)}
       alt={property.title}
       className="w-full h-28 object-cover rounded-md mb-2"
       loading="lazy"

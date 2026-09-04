@@ -5,6 +5,7 @@ import { Property } from "@/types/models";
 import { RatingStars } from "@/components/RatingStars";
 import { getPropertyRating } from "@/lib/ratings";
 import property1 from "@/assets/property-1.jpg";
+import { getAllPropertyImageUrls } from "@/lib/propertyImage";
 import { formatRentPrice, getPropertyLocationLabel } from "@/features/rentals/lib/rentalFormat";
 import { RentalFavoriteButton } from "@/features/rentals/components/RentalFavoriteButton";
 import { RentalCardCarousel } from "@/features/rentals/components/RentalCardCarousel";
@@ -30,9 +31,8 @@ export const RentalCard = ({
   onLeave,
   onSelect,
 }: Props) => {
-  const images = property.images?.length
-    ? property.images.map((img) => img.url)
-    : [property1];
+  const images = getAllPropertyImageUrls(property.images);
+  const displayImages = images.length ? images : [property1];
   const location = getPropertyLocationLabel(property);
   const rating = getPropertyRating(property);
   const promotionBadge = getListingPromotionBadge(property, "For Rent");
@@ -45,7 +45,7 @@ export const RentalCard = ({
           layout === "list" ? "w-full md:w-72 h-48 md:h-auto md:min-h-[12rem]" : "h-52"
         )}
       >
-        <RentalCardCarousel images={images} alt={property.title} />
+        <RentalCardCarousel images={displayImages} alt={property.title} />
         <PromotionBadge label={promotionBadge.label} variant={promotionBadge.variant} />
         <div className="absolute top-3 right-3">
           <RentalFavoriteButton propertyId={property._id} />

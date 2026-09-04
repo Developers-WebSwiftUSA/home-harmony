@@ -4,6 +4,7 @@ import { DashboardSidebar } from "./AdminDashboard";
 import { favoriteService } from "@/services/favorite.service";
 import { isRentalListing, formatRentPrice } from "@/features/rentals/lib/rentalFormat";
 import property1 from "@/assets/property-1.jpg";
+import { getPropertyPrimaryImage } from "@/lib/propertyImage";
 import { RentalFavoriteButton } from "@/features/rentals/components/RentalFavoriteButton";
 import { MapPin, Bed, Bath } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -45,7 +46,7 @@ const SavedRentals = () => {
                 <div key={fav._id} className="bg-card border border-border rounded-xl overflow-hidden">
                   <div className="relative">
                     <img
-                      src={property.images?.[0]?.url || property1}
+                      src={getPropertyPrimaryImage(property.images, property1)}
                       alt={property.title}
                       className="w-full h-44 object-cover"
                       loading="lazy"

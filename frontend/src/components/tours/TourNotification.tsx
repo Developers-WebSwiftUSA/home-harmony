@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Tour } from "@/types/models";
 import { cn } from "@/lib/utils";
 import { formatTourCountdown, getTourDateString } from "@/lib/tourDate";
+import { getPropertyPrimaryImage } from "@/lib/propertyImage";
 
 interface TourNotificationProps {
   tour: Tour;
@@ -65,7 +66,7 @@ const TourNotification = ({ tour, onDismiss, onView, className }: TourNotificati
     }
   };
 
-  const propertyImage = tour.propertyId?.images?.[0]?.url;
+  const propertyImage = getPropertyPrimaryImage(tour.propertyId?.images);
   const propertyTitle = tour.propertyId?.title || "Property";
   const agentName = tour.agentId
     ? `${tour.agentId.firstName || ""} ${tour.agentId.lastName || ""}`.trim() || tour.agentId.email

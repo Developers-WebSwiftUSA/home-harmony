@@ -13,6 +13,7 @@ import { useState } from "react";
 import { cn } from "@/lib/utils";
 import { isTourPast, isTourUpcoming, toLocalDateString } from "@/lib/tourDate";
 import { getUserId, isSameUser } from "@/lib/userDisplay";
+import { getPropertyPrimaryImage } from "@/lib/propertyImage";
 import { getPropertyDetailPath } from "@/lib/propertyRoutes";
 import AnimatedCalendar from "@/components/tours/AnimatedCalendar";
 import AnimatedTimePicker from "@/components/tours/AnimatedTimePicker";
@@ -292,7 +293,7 @@ const TourDetail = () => {
     );
   }
 
-  const propertyImage = tour.propertyId?.images?.[0]?.url;
+  const propertyImage = getPropertyPrimaryImage(tour.propertyId?.images);
   const agentName = tour.agentId
     ? `${tour.agentId.firstName || ""} ${tour.agentId.lastName || ""}`.trim() || tour.agentId.email
     : null;

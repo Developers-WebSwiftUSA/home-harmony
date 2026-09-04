@@ -18,6 +18,7 @@ import { isRentalListing } from "@/features/rentals/lib/rentalFormat";
 import { liveQueryOptions } from "@/lib/liveQuery";
 import { usePendingActionCounts } from "@/hooks/usePendingActionCounts";
 import { formatPendingBadge, getSidebarPendingCount } from "@/lib/pendingActionBadges";
+import { getPropertyPrimaryImage } from "@/lib/propertyImage";
 
 const pendingProperties = [
   { id: 1, title: "Luxury Villa in Miami", seller: "John Smith", image: property1, submitted: "2 hours ago" },
@@ -248,7 +249,7 @@ const AdminDashboard = () => {
         id: p._id,
         title: p.title,
         seller: `${p.sellerId?.firstName || ""} ${p.sellerId?.lastName || ""}`.trim() || p.sellerId?.email || "Seller",
-        image: p.images?.[0]?.url || property1,
+        image: getPropertyPrimaryImage(p.images, property1),
         submitted: p.createdAt ? new Date(p.createdAt).toLocaleDateString() : "-",
       })) || pendingProperties;
 

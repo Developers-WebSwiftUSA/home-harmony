@@ -13,6 +13,7 @@ import { getPropertyDetailPath } from "@/lib/propertyRoutes";
 import { isRentalListing } from "@/features/rentals/lib/rentalFormat";
 import { getSavedRentalSearches } from "@/features/rentals/lib/savedSearches";
 import property1 from "@/assets/property-1.jpg";
+import { getPropertyPrimaryImage } from "@/lib/propertyImage";
 
 const BuyerDashboard = () => {
   const { user } = useAuth();
@@ -28,7 +29,7 @@ const BuyerDashboard = () => {
   const favorites = (favoritesData?.data || []).map((fav) => ({
     id: fav.propertyId?._id,
     listingType: fav.propertyId?.listingType,
-    image: fav.propertyId?.images?.[0]?.url || property1,
+    image: getPropertyPrimaryImage(fav.propertyId?.images, property1),
     title: fav.propertyId?.title || "Property",
     location: [fav.propertyId?.location?.city, fav.propertyId?.location?.state].filter(Boolean).join(", "),
     price: fav.propertyId && isRentalListing(fav.propertyId)

@@ -15,6 +15,7 @@ import { DashboardTabPills, listingTypeTabs, marketTabs } from "@/components/das
 import { isRentalListing } from "@/features/rentals/lib/rentalFormat";
 import property1 from "@/assets/property-1.jpg";
 import property2 from "@/assets/property-2.jpg";
+import { getPropertyPrimaryImage } from "@/lib/propertyImage";
 
 const listings = [
   { id: 1, image: property1, title: "Downtown Smart Apartments", price: "$450,000", status: "Active", views: 234, inquiries: 12 },
@@ -61,7 +62,7 @@ const SellerDashboard = () => {
   const listingsLive =
     allProperties.slice(0, 3).map((item) => ({
       id: item._id,
-      image: item.images?.[0]?.url || property1,
+      image: getPropertyPrimaryImage(item.images, property1),
       title: item.title,
       price: `$${Number(item.price || 0).toLocaleString()}`,
       status: item.status === "pending" ? "Pending Review" : item.status.charAt(0).toUpperCase() + item.status.slice(1),

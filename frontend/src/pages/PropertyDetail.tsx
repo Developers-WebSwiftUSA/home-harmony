@@ -6,6 +6,7 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Navbar from "@/components/landing/Navbar";
 import Footer from "@/components/landing/Footer";
 import property1 from "@/assets/property-1.jpg";
+import { getPropertyPrimaryImage } from "@/lib/propertyImage";
 import agent1 from "@/assets/agent-1.jpg";
 import { propertyService } from "@/services/property.service";
 import { messageService } from "@/services/message.service";
@@ -112,7 +113,7 @@ const PropertyDetail = () => {
   }
 
   const property = {
-    image: apiProperty.images?.[0]?.url || property1,
+    image: getPropertyPrimaryImage(apiProperty.images, property1),
     title: apiProperty.title,
     location: [apiProperty.location?.address, apiProperty.location?.city, apiProperty.location?.state]
       .filter(Boolean)

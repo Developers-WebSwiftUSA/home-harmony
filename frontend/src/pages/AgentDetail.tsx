@@ -13,6 +13,7 @@ import { getPropertyRating } from "@/lib/ratings";
 import { getPropertyDetailPath } from "@/lib/propertyRoutes";
 import { formatRentPrice, isRentalListing } from "@/features/rentals/lib/rentalFormat";
 import property1 from "@/assets/property-1.jpg";
+import { getPropertyPrimaryImage } from "@/lib/propertyImage";
 import heroBg from "@/assets/hero-bg.jpg";
 
 const AgentDetail = () => {
@@ -166,7 +167,7 @@ const AgentDetail = () => {
                           key={prop._id}
                           id={prop._id}
                           to={getPropertyDetailPath(prop)}
-                          image={prop.images?.[0]?.url || property1}
+                          image={getPropertyPrimaryImage(prop.images, property1)}
                           title={prop.title}
                           location={[prop.location?.address, prop.location?.city].filter(Boolean).join(", ")}
                           price={isRentalListing(prop) ? formatRentPrice(prop.price) : `$${Number(prop.price || 0).toLocaleString()}`}

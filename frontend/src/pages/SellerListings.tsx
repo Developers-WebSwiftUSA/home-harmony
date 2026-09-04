@@ -6,6 +6,8 @@ import { PetPolicyBadge } from "@/components/PetPolicyBadge";
 import { DashboardSidebar } from "./AdminDashboard";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import property1 from "@/assets/property-1.jpg";
+import { PropertyImage } from "@/components/PropertyImage";
+import { getPropertyPrimaryImage } from "@/lib/propertyImage";
 import { propertyService } from "@/services/property.service";
 import { AssignAgentControl } from "@/components/AssignAgentControl";
 import { PropertyViewershipControl } from "@/components/PropertyViewershipControl";
@@ -55,7 +57,7 @@ const SellerListings = () => {
   const allListings = (data?.data || []).map((item) => ({
     id: item._id,
     raw: item,
-    image: item.images?.[0]?.url || property1,
+    image: getPropertyPrimaryImage(item.images, property1),
     title: item.title,
     location: [item.location?.address, item.location?.city, item.location?.state].filter(Boolean).join(", "),
     price: `$${Number(item.price || 0).toLocaleString()}`,
@@ -192,7 +194,7 @@ const SellerListings = () => {
             <div key={listing.id} className="bg-card border border-border rounded-xl p-6 hover:shadow-md transition-shadow">
               <div className="flex flex-col md:flex-row gap-6">
                 <div className="relative w-full md:w-48 h-40 rounded-lg overflow-hidden flex-shrink-0">
-                  <img src={listing.image} alt={listing.title} className="w-full h-full object-cover" />
+                  <PropertyImage src={listing.image} alt={listing.title} fallback={property1} className="w-full h-full object-cover" />
                   <span className={`absolute top-2 left-2 text-xs font-semibold px-2 py-1 rounded-full ${
                     listing.status === "Active" ? "bg-green-500 text-white" :
                     listing.status === "Pending Review" ? "bg-yellow-500 text-white" :

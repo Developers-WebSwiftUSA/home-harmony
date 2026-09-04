@@ -14,6 +14,7 @@ import { UserAvatar } from "@/components/UserAvatar";
 import { getDisplayName } from "@/lib/userDisplay";
 import { formatRating, getAgentRating } from "@/lib/ratings";
 import property1 from "@/assets/property-1.jpg";
+import { getPropertyPrimaryImage } from "@/lib/propertyImage";
 import { getPropertyDetailPath } from "@/lib/propertyRoutes";
 import { PropertyViewershipControl } from "@/components/PropertyViewershipControl";
 import { Property } from "@/types/models";
@@ -444,7 +445,7 @@ const AgentDashboard = () => {
                   <div key={property._id} className="bg-card border border-border rounded-xl overflow-hidden hover:shadow-md transition-shadow">
                     <div className="flex flex-col sm:flex-row">
                       <img
-                        src={property.images?.[0]?.url || property1}
+                        src={getPropertyPrimaryImage(property.images, property1)}
                         alt={property.title}
                         className="w-full sm:w-40 h-32 sm:h-auto object-cover"
                       />

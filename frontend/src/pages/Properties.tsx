@@ -5,6 +5,7 @@ import Navbar from "@/components/landing/Navbar";
 import Footer from "@/components/landing/Footer";
 import heroBg from "@/assets/hero-bg.jpg";
 import property1 from "@/assets/property-1.jpg";
+import { getPropertyPrimaryImage } from "@/lib/propertyImage";
 import { propertyService } from "@/services/property.service";
 import { getPropertyRating } from "@/lib/ratings";
 import { getListingPromotionBadge } from "@/features/ads/lib/promotionDisplay";
@@ -119,7 +120,7 @@ const Properties = () => {
   const allProperties = (data?.data || []).map((p) => ({
     id: p._id,
     raw: p,
-    image: p.images?.[0]?.url || property1,
+    image: getPropertyPrimaryImage(p.images, property1),
     title: p.title,
     location: [p.location?.address, p.location?.city, p.location?.state].filter(Boolean).join(", "),
     price: `$${Number(p.price || 0).toLocaleString()}`,

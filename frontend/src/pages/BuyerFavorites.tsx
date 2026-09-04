@@ -5,6 +5,7 @@ import { favoriteService } from "@/services/favorite.service";
 import { isRentalListing } from "@/features/rentals/lib/rentalFormat";
 import { getPropertyDetailPath } from "@/lib/propertyRoutes";
 import property1 from "@/assets/property-1.jpg";
+import { getPropertyPrimaryImage } from "@/lib/propertyImage";
 
 const BuyerFavorites = () => {
   const { data, isLoading } = useQuery({
@@ -53,7 +54,7 @@ const BuyerFavorites = () => {
                   className="bg-card border border-border rounded-xl overflow-hidden"
                 >
                   <img
-                    src={property.images?.[0]?.url || property1}
+                    src={getPropertyPrimaryImage(property.images, property1)}
                     alt={property.title}
                     className="w-full h-44 object-cover"
                   />

@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import property1 from "@/assets/property-1.jpg";
+import { getPropertyPrimaryImage } from "@/lib/propertyImage";
 import { propertyService } from "@/services/property.service";
 import { getPropertyRating } from "@/lib/ratings";
 import { getListingPromotionBadge } from "@/features/ads/lib/promotionDisplay";
@@ -53,7 +54,7 @@ const PropertiesSection = () => {
               <PropertyListCard
                 key={prop._id}
                 id={prop._id}
-                image={prop.images?.[0]?.url || property1}
+                image={getPropertyPrimaryImage(prop.images, property1)}
                 title={prop.title}
                 location={[prop.location?.address, prop.location?.city].filter(Boolean).join(", ")}
                 price={`$${Number(prop.price || 0).toLocaleString()}`}
