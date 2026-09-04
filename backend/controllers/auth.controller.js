@@ -5,6 +5,7 @@ import { generateToken } from '../utils/generateToken.js';
 import { sendEmail } from '../utils/sendEmail.js';
 import { SUPER_ADMIN_EMAIL } from '../config/seed.js';
 import { buildDefaultAvatar, formatAuthUser } from '../utils/formatAuthUser.js';
+import { emitPendingActionsUpdatedForAdmins } from '../utils/emitPendingActions.js';
 
 // @desc    Register user
 // @route   POST /api/auth/register
@@ -57,6 +58,10 @@ export const register = asyncHandler(async (req, res) => {
     avatar: safeAvatar || buildDefaultAvatar({ firstName, lastName, email: normalizedEmail }),
     ...(normalizedRole === "agent" ? { agentProfile: { verified: false } } : {}),
   });
+
+  if (normalizedRole === "agent") {
+    await emitPendingActionsUpdatedForAdmins(req.app.get('io'));
+  }
 
   // Generate token
   const token = generateToken(user._id);
@@ -233,6 +238,8 @@ export const forgotPassword = asyncHandler(async (req, res) => {
     email: user.email,
     reason: reason || 'User requested password reset'
   });
+
+  await emitPendingActionsUpdatedForAdmins(req.app.get('io'));
 
   res.status(200).json({
     success: true,

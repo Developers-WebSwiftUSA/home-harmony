@@ -16,6 +16,8 @@ import { formatOverviewValue, getTrend } from "@/lib/analyticsDisplay";
 import { DashboardTabPills, listingTypeTabs, partnerRoleTabs } from "@/components/dashboard/DashboardTabPills";
 import { isRentalListing } from "@/features/rentals/lib/rentalFormat";
 import { liveQueryOptions } from "@/lib/liveQuery";
+import { usePendingActionCounts } from "@/hooks/usePendingActionCounts";
+import { formatPendingBadge, getSidebarPendingCount } from "@/lib/pendingActionBadges";
 
 const pendingProperties = [
   { id: 1, title: "Luxury Villa in Miami", seller: "John Smith", image: property1, submitted: "2 hours ago" },
@@ -31,6 +33,7 @@ const recentUsers = [
 const DashboardSidebar = ({ active, role }: { active: string; role: string }) => {
   const navigate = useNavigate();
   const { logout } = useAuth();
+  const pendingCounts = usePendingActionCounts();
 
   const handleSignOut = () => {
     logout();
@@ -108,20 +111,31 @@ const DashboardSidebar = ({ active, role }: { active: string; role: string }) =>
       </Link>
 
       <nav className="flex-1 space-y-1">
-        {(links[role] || links.admin).map((link) => (
-          <Link
-            key={link.label}
-            to={link.href}
-            className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
-              active === link.label
-                ? "bg-primary text-primary-foreground"
-                : "text-dark-surface-foreground/60 hover:text-dark-surface-foreground hover:bg-dark-surface-muted"
-            }`}
-          >
-            <link.icon className="w-4 h-4" />
-            {link.label}
-          </Link>
-        ))}
+        {(links[role] || links.admin).map((link) => {
+          const pendingCount = getSidebarPendingCount(role, link.label, pendingCounts);
+          return (
+            <Link
+              key={link.label}
+              to={link.href}
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+                active === link.label
+                  ? "bg-primary text-primary-foreground"
+                  : "text-dark-surface-foreground/60 hover:text-dark-surface-foreground hover:bg-dark-surface-muted"
+              }`}
+            >
+              <link.icon className="w-4 h-4 shrink-0" />
+              <span className="flex-1 truncate">{link.label}</span>
+              {pendingCount > 0 ? (
+                <span
+                  className="ml-auto min-w-[1.25rem] h-5 px-1.5 rounded-full bg-red-500 text-white text-[10px] font-semibold leading-5 text-center shrink-0"
+                  aria-label={`${pendingCount} pending ${link.label.toLowerCase()}`}
+                >
+                  {formatPendingBadge(pendingCount)}
+                </span>
+              ) : null}
+            </Link>
+          );
+        })}
       </nav>
 
       <button

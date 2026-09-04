@@ -3,7 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import { DashboardSidebar } from "./AdminDashboard";
 import { Button } from "@/components/ui/button";
-import { PropertyLocationPicker, isValidPropertyCoordinates } from "@/components/PropertyLocationPicker";
+import { PropertyLocationPicker } from "@/components/PropertyLocationPicker";
+import { buildListingLocation } from "@/lib/listingLocation";
 import { propertyService } from "@/services/property.service";
 import { uploadService } from "@/services/upload.service";
 import { toast } from "sonner";
@@ -120,17 +121,7 @@ const SellerAddListing = () => {
               ...petDetails,
             }
           : petDetails,
-      location: {
-        address: form.address,
-        city: form.city,
-        state: form.state,
-        zipCode: form.zipCode,
-        country: "USA",
-        coordinates: {
-          type: "Point" as const,
-          coordinates: [Number(form.longitude), Number(form.latitude)] as [number, number],
-        },
-      },
+      location: buildListingLocation(form),
       images: uploadedImageUrl ? [{ url: uploadedImageUrl, isPrimary: true }] : [],
       amenities: form.amenities
         .split(",")
@@ -151,25 +142,26 @@ const SellerAddListing = () => {
     mutationFn: async () => {
       const payload = await buildPayload();
       if (isEditing && id) {
-        return propertyService.update(id, { ...payload, status: existing?.status || "active" });
+        const nextStatus = existing?.status === "rejected" ? "pending" : existing?.status || "pending";
+        return propertyService.update(id, { ...payload, status: nextStatus });
       }
-      return propertyService.create({ ...payload, status: "active" });
+      return propertyService.create({ ...payload, status: "pending" });
     },
     onSuccess: () => {
       invalidateListingQueries();
-      toast.success(isEditing ? "Listing updated successfully" : "Listing created successfully");
+      toast.success(
+        isEditing
+          ? existing?.status === "rejected"
+            ? "Listing resubmitted for admin approval"
+            : "Listing updated successfully"
+          : "Listing submitted for admin approval"
+      );
       navigate("/seller/listings");
     },
   });
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const lat = Number(form.latitude);
-    const lng = Number(form.longitude);
-    if (!isValidPropertyCoordinates(lat, lng)) {
-      toast.error("Please select a location on the map or enter valid latitude and longitude.");
-      return;
-    }
     saveMutation.mutate();
   };
 
@@ -432,7 +424,7 @@ const SellerAddListing = () => {
             onPlaceSelect={(place) =>
               setForm((prev) => ({
                 ...prev,
-                address: place.address || prev.address,
+                address: place.address || place.label || prev.address,
                 city: place.city || prev.city,
                 state: place.state || prev.state,
                 zipCode: place.zipCode || prev.zipCode,
@@ -478,10 +470,12 @@ const SellerAddListing = () => {
               {saveMutation.isPending
                 ? isEditing
                   ? "Saving..."
-                  : "Creating..."
+                  : "Submitting..."
                 : isEditing
-                  ? "Save Changes"
-                  : "Create Listing"}
+                  ? existing?.status === "rejected"
+                    ? "Resubmit for Approval"
+                    : "Save Changes"
+                  : "Submit for Approval"}
             </Button>
             <Button type="button" variant="outline" onClick={() => navigate("/seller/listings")}>
               Cancel

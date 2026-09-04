@@ -2,6 +2,7 @@ import asyncHandler from '../middleware/asyncHandler.js';
 import User from '../models/User.model.js';
 import Property from '../models/Property.model.js';
 import Tour from '../models/Tour.model.js';
+import { emitPendingActionsUpdatedForAdmins } from '../utils/emitPendingActions.js';
 
 // @desc    Get all users
 // @route   GET /api/users
@@ -316,6 +317,7 @@ export const verifyAgent = asyncHandler(async (req, res) => {
     user.agentProfile.verified = true;
   }
   await user.save();
+  await emitPendingActionsUpdatedForAdmins(req.app.get('io'));
 
   res.status(200).json({
     success: true,

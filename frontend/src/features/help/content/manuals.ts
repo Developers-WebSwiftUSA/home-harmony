@@ -471,13 +471,13 @@ export const HELP_MANUALS: Record<string, HelpManual> = {
       },
       {
         title: "Set map location",
-        description: "Search an address or click the map to drop a pin. Valid coordinates are required for map search visibility.",
+        description: "Use Find address on map to open a popup, drop a pin, or click the map under the buttons. The address fills automatically. Latitude and longitude are optional.",
         visual: "map-search",
-        tips: ["Listings without a map pin won't appear in map area searches."],
+        tips: ["A map pin helps the listing appear in map searches, but it is not required to submit."],
       },
       {
-        title: "Upload photos & publish",
-        description: "Add at least one image, select amenities, then save. New listings may require admin approval.",
+        title: "Upload photos & submit",
+        description: "Add at least one image, select amenities, then save. New listings go to admin approval and stay off the public site until approved.",
       },
     ],
   },

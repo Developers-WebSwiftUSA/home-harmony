@@ -6,6 +6,7 @@ import Notification from '../models/Notification.model.js';
 import Property from '../models/Property.model.js';
 import User from '../models/User.model.js';
 import { buildDirectKey } from '../utils/conversationKey.js';
+import { emitPendingActionsUpdated } from '../utils/emitPendingActions.js';
 
 const toObjectId = (value) => {
   if (!value) return null;
@@ -254,9 +255,12 @@ export const getMessages = asyncHandler(async (req, res) => {
     }
   );
 
-  // Update conversation unread count
+  const previousUnread = conversation.unreadCount.get(req.user.id.toString()) || 0;
   conversation.unreadCount.set(req.user.id.toString(), 0);
   await conversation.save();
+  if (previousUnread > 0) {
+    emitPendingActionsUpdated(req.app.get('io'), req.user.id);
+  }
 
   res.status(200).json({
     success: true,
@@ -383,8 +387,12 @@ export const markAsRead = asyncHandler(async (req, res) => {
 
   const conversation = await Conversation.findById(conversationId);
   if (conversation) {
+    const previousUnread = conversation.unreadCount.get(req.user.id.toString()) || 0;
     conversation.unreadCount.set(req.user.id.toString(), 0);
     await conversation.save();
+    if (previousUnread > 0) {
+      emitPendingActionsUpdated(req.app.get('io'), req.user.id);
+    }
   }
 
   res.status(200).json({

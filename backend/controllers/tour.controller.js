@@ -4,7 +4,8 @@ import Property from '../models/Property.model.js';
 import Notification from '../models/Notification.model.js';
 import { sendEmail } from '../utils/sendEmail.js';
 import { sendSMS } from '../utils/sendSMS.js';
-import { refreshAgentRating, refreshPropertyRating } from '../utils/ratings.js';
+import { refreshPropertyRating, refreshAgentRating } from '../utils/ratings.js';
+import { emitPendingActionsUpdated } from '../utils/emitPendingActions.js';
 
 // @desc    Get all tours
 // @route   GET /api/tours
@@ -185,6 +186,8 @@ export const createTour = asyncHandler(async (req, res) => {
     });
   }
 
+  emitPendingActionsUpdated(req.app.get('io'), property.sellerId, property.agentId);
+
   // Send email to seller
   try {
     const seller = await Property.findById(propertyId).populate('sellerId');
@@ -353,6 +356,7 @@ export const approveTour = asyncHandler(async (req, res) => {
   const io = req.app.get('io');
   if (io) {
     io.to(`user-${tour.buyerId._id}`).emit('tour-updated', tour);
+    emitPendingActionsUpdated(io, req.user.id, tour.buyerId._id, tour.sellerId, tour.agentId);
   }
 
   res.status(200).json({
@@ -419,6 +423,7 @@ export const declineTour = asyncHandler(async (req, res) => {
   const io = req.app.get('io');
   if (io) {
     io.to(`user-${tour.buyerId._id}`).emit('tour-updated', tour);
+    emitPendingActionsUpdated(io, req.user.id, tour.buyerId._id, tour.sellerId, tour.agentId);
   }
 
   res.status(200).json({
@@ -530,6 +535,7 @@ export const rescheduleTour = asyncHandler(async (req, res) => {
   const io = req.app.get('io');
   if (io) {
     io.to(`user-${tour.buyerId._id}`).emit('tour-updated', tour);
+    emitPendingActionsUpdated(io, req.user.id, tour.buyerId._id, tour.sellerId, tour.agentId);
   }
 
   res.status(200).json({
@@ -603,6 +609,7 @@ export const approveReschedule = asyncHandler(async (req, res) => {
   if (io) {
     io.to(`user-${notifyUserId}`).emit('tour-updated', tour);
     io.to(`user-${tour.buyerId._id}`).emit('tour-updated', tour);
+    emitPendingActionsUpdated(io, req.user.id, notifyUserId, tour.buyerId._id, tour.sellerId, tour.agentId);
   }
 
   res.status(200).json({
@@ -676,6 +683,7 @@ export const rejectReschedule = asyncHandler(async (req, res) => {
   if (io) {
     io.to(`user-${notifyUserId}`).emit('tour-updated', tour);
     io.to(`user-${tour.buyerId._id}`).emit('tour-updated', tour);
+    emitPendingActionsUpdated(io, req.user.id, notifyUserId, tour.buyerId._id, tour.sellerId, tour.agentId);
   }
 
   res.status(200).json({
@@ -735,6 +743,7 @@ export const markComplete = asyncHandler(async (req, res) => {
   if (io) {
     io.to(`user-${notifyUserId}`).emit('tour-updated', tour);
     io.to(`user-${tour.buyerId._id}`).emit('tour-updated', tour);
+    emitPendingActionsUpdated(io, req.user.id, notifyUserId, tour.buyerId._id, tour.sellerId, tour.agentId);
   }
 
   res.status(200).json({

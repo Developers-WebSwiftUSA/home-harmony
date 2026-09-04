@@ -23,6 +23,7 @@ import rentalApplicationRoutes from './routes/rentalApplication.routes.js';
 import crmRoutes from './routes/crm.routes.js';
 import adCampaignRoutes from './routes/adCampaign.routes.js';
 import newsRoutes from './routes/news.routes.js';
+import pendingActionsRoutes from './routes/pendingActions.routes.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -127,6 +128,7 @@ app.use('/api/rental-applications', rentalApplicationRoutes);
 app.use('/api/crm', crmRoutes);
 app.use('/api/ad-campaigns', adCampaignRoutes);
 app.use('/api/news', newsRoutes);
+app.use('/api/pending-actions', pendingActionsRoutes);
 
 const serveFrontend = fs.existsSync(frontendIndex);
 

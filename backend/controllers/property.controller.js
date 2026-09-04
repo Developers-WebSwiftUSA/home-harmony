@@ -4,7 +4,12 @@ import PropertyView from '../models/PropertyView.model.js';
 import Notification from '../models/Notification.model.js';
 import User from '../models/User.model.js';
 import { expireAdCampaigns } from '../utils/adCampaignLifecycle.js';
-import { ensurePropertyCoordinates, applyMapRadiusSearch, applyMapBoundsSearch } from '../utils/propertyLocation.js';
+import { emitPendingActionsUpdated } from '../utils/emitPendingActions.js';
+import {
+  applyMapBoundsSearch,
+  applyMapRadiusSearch,
+  ensurePropertyCoordinates,
+} from '../utils/propertyLocation.js';
 
 const EARTH_RADIUS_MILES = 3963.2;
 
@@ -281,6 +286,15 @@ export const getProperty = asyncHandler(async (req, res) => {
 // @access  Private/Seller
 export const createProperty = asyncHandler(async (req, res) => {
   req.body.sellerId = req.user.id;
+  delete req.body.approvedBy;
+  delete req.body.approvedAt;
+
+  // Sellers cannot publish live — new listings always wait for admin approval.
+  if (req.user.role !== 'admin') {
+    req.body.status = 'pending';
+  } else if (!req.body.status) {
+    req.body.status = 'pending';
+  }
 
   if (req.body.location) {
     req.body.location = await ensurePropertyCoordinates(req.body.location);
@@ -288,14 +302,34 @@ export const createProperty = asyncHandler(async (req, res) => {
 
   const property = await Property.create(req.body);
 
-  // Notify admin for approval
+  const io = req.app.get('io');
+  const admins = await User.find({ role: 'admin', status: 'active' }).select('_id');
+  await Promise.all(
+    admins.map((admin) =>
+      Notification.create({
+        userId: admin._id,
+        type: 'system_announcement',
+        title: 'Listing pending approval',
+        message: `"${property.title}" was submitted and needs review.`,
+        relatedId: property._id,
+        relatedModel: 'Property',
+        actionUrl: `/admin/properties/${property._id}`,
+      }).then((notification) => {
+        if (io) {
+          io.to(`user-${admin._id}`).emit('notification', notification);
+          emitPendingActionsUpdated(io, admin._id);
+        }
+      })
+    )
+  );
+
   await Notification.create({
     userId: req.user.id,
-    type: 'property_approved',
-    title: 'New Property Listing',
-    message: `Property "${property.title}" has been submitted for review`,
+    type: 'system_announcement',
+    title: 'Listing submitted',
+    message: `"${property.title}" was sent for admin approval and is not live yet.`,
     relatedId: property._id,
-    relatedModel: 'Property'
+    relatedModel: 'Property',
   });
 
   res.status(201).json({
@@ -323,6 +357,18 @@ export const updateProperty = asyncHandler(async (req, res) => {
       success: false,
       message: 'Not authorized to update this property'
     });
+  }
+
+  if (req.user.role !== 'admin') {
+    delete req.body.status;
+    delete req.body.approvedBy;
+    delete req.body.approvedAt;
+    delete req.body.featured;
+    delete req.body.promotion;
+    delete req.body.promotionPriority;
+    if (property.status === 'rejected') {
+      req.body.status = 'pending';
+    }
   }
 
   if (req.body.location) {
@@ -520,6 +566,8 @@ export const approveProperty = asyncHandler(async (req, res) => {
     relatedModel: 'Property'
   });
 
+  emitPendingActionsUpdated(req.app.get('io'), req.user.id, property.sellerId);
+
   res.status(200).json({
     success: true,
     data: property
@@ -551,6 +599,8 @@ export const rejectProperty = asyncHandler(async (req, res) => {
     relatedId: property._id,
     relatedModel: 'Property'
   });
+
+  emitPendingActionsUpdated(req.app.get('io'), req.user.id, property.sellerId);
 
   res.status(200).json({
     success: true,

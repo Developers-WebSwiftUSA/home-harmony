@@ -15,6 +15,7 @@ import {
   clearPropertyPromotion,
   expireAdCampaigns,
 } from '../utils/adCampaignLifecycle.js';
+import { emitPendingActionsUpdatedForAdmins } from '../utils/emitPendingActions.js';
 
 const populateCampaign = (query) =>
   query
@@ -271,6 +272,7 @@ export const createAdCampaign = asyncHandler(async (req, res) => {
       })
     )
   );
+  await emitPendingActionsUpdatedForAdmins(io);
 
   res.status(201).json({ success: true, data: populated });
 });
@@ -298,6 +300,7 @@ export const cancelAdCampaign = asyncHandler(async (req, res) => {
   await campaign.save();
 
   const populated = await populateCampaign(AdCampaign.findById(campaign._id));
+  await emitPendingActionsUpdatedForAdmins(req.app.get('io'));
   res.status(200).json({ success: true, data: populated });
 });
 
@@ -350,6 +353,7 @@ export const approveAdCampaign = asyncHandler(async (req, res) => {
     relatedId: campaign._id,
     relatedModel: 'AdCampaign',
   });
+  await emitPendingActionsUpdatedForAdmins(io);
 
   res.status(200).json({ success: true, data: populated });
 });
@@ -388,6 +392,7 @@ export const rejectAdCampaign = asyncHandler(async (req, res) => {
     relatedId: campaign._id,
     relatedModel: 'AdCampaign',
   });
+  await emitPendingActionsUpdatedForAdmins(io);
 
   res.status(200).json({ success: true, data: populated });
 });

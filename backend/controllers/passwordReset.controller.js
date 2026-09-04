@@ -2,6 +2,7 @@ import asyncHandler from '../middleware/asyncHandler.js';
 import PasswordResetRequest from '../models/PasswordResetRequest.model.js';
 import { sendEmail } from '../utils/sendEmail.js';
 import { setUserPasswordById } from '../utils/userPassword.js';
+import { emitPendingActionsUpdatedForAdmins } from '../utils/emitPendingActions.js';
 
 const userIdOf = (value) => value?._id || value;
 
@@ -96,6 +97,8 @@ export const approvePasswordReset = asyncHandler(async (req, res) => {
     emailSent,
     data: updatedRequest
   });
+
+  await emitPendingActionsUpdatedForAdmins(req.app.get('io'));
 });
 
 // @desc    Reject password reset request
@@ -142,6 +145,8 @@ export const rejectPasswordReset = asyncHandler(async (req, res) => {
     message: 'Password reset request rejected',
     data: updatedRequest
   });
+
+  await emitPendingActionsUpdatedForAdmins(req.app.get('io'));
 });
 
 // @desc    Reset user password (Admin can reset any user's password)

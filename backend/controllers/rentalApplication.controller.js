@@ -2,6 +2,7 @@ import asyncHandler from '../middleware/asyncHandler.js';
 import RentalApplication from '../models/RentalApplication.model.js';
 import Property from '../models/Property.model.js';
 import Notification from '../models/Notification.model.js';
+import { emitPendingActionsUpdated } from '../utils/emitPendingActions.js';
 
 const isRentalListing = (property) =>
   property.listingType === 'rent' || property.listingType === 'both';
@@ -147,6 +148,7 @@ export const createRentalApplication = asyncHandler(async (req, res) => {
     if (property.agentId) {
       io.to(`user-${property.agentId}`).emit('rental-application', populated);
     }
+    emitPendingActionsUpdated(io, property.sellerId, property.agentId);
   }
 
   res.status(201).json({ success: true, data: populated });
@@ -203,6 +205,8 @@ export const updateRentalApplicationStatus = asyncHandler(async (req, res) => {
       actionUrl: '/buyer/applications'
     });
   }
+
+  emitPendingActionsUpdated(req.app.get('io'), req.user.id, application.sellerId, application.agentId, application.buyerId);
 
   res.status(200).json({ success: true, data: populated });
 });

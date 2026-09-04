@@ -14,7 +14,7 @@ const NOMINATIM_HEADERS = {
   "Accept-Language": "en",
 };
 
-const parseNominatimAddress = (result: {
+export const parseNominatimAddress = (result: {
   display_name: string;
   address?: Record<string, string>;
 }): Pick<PlaceSuggestion, "address" | "city" | "state" | "zipCode"> => {
@@ -65,4 +65,31 @@ export const searchPlaces = async (query: string, limit = 6): Promise<PlaceSugge
 export const geocodeAddress = async (query: string): Promise<PlaceSuggestion | null> => {
   const results = await searchPlaces(query, 1);
   return results[0] || null;
+};
+
+export const reverseGeocode = async (
+  latitude: number,
+  longitude: number
+): Promise<PlaceSuggestion | null> => {
+  if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+
+  const response = await fetch(
+    `https://nominatim.openstreetmap.org/reverse?format=json&addressdetails=1&lat=${latitude}&lon=${longitude}`,
+    { headers: NOMINATIM_HEADERS }
+  );
+
+  if (!response.ok) {
+    throw new Error("Could not look up that map location.");
+  }
+
+  const result = await response.json();
+  if (!result || result.error) return null;
+
+  return {
+    id: String(result.place_id || `${latitude},${longitude}`),
+    label: result.display_name || `${latitude.toFixed(5)}, ${longitude.toFixed(5)}`,
+    latitude,
+    longitude,
+    ...parseNominatimAddress(result),
+  };
 };
