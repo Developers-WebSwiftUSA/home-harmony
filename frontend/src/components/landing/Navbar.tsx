@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { Menu, X, User, Mail, Phone, LogOut } from "lucide-react";
+import { Menu, X, User, Mail, Phone, LogOut, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import Logo from "./Logo";
 import { useAuth } from "@/context/AuthContext";
 import { UserAvatar } from "@/components/UserAvatar";
 import { getDisplayName } from "@/lib/userDisplay";
+import { openUserGuide } from "@/features/help/lib/openUserGuide";
 
 const navLinks = [
   { label: "Home", href: "/" },
@@ -128,6 +129,14 @@ const Navbar = () => {
                   {link.label}
                 </Link>
               ))}
+              <button
+                type="button"
+                onClick={() => openUserGuide()}
+                className="text-sm font-medium text-slate-800 hover:text-primary transition-colors inline-flex items-center gap-1.5"
+              >
+                <BookOpen className="w-4 h-4" />
+                User Guide
+              </button>
             </div>
 
             {/* Mobile toggle */}
@@ -153,6 +162,17 @@ const Navbar = () => {
                     {link.label}
                   </Link>
                 ))}
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMobileOpen(false);
+                    openUserGuide();
+                  }}
+                  className="text-sm font-medium text-slate-800 hover:text-primary transition-colors py-2 text-left inline-flex items-center gap-1.5"
+                >
+                  <BookOpen className="w-4 h-4" />
+                  User Guide
+                </button>
               </div>
             </div>
           )}

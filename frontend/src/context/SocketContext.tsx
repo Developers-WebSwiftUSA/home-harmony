@@ -29,15 +29,15 @@ export const SocketProvider = ({ children }: SocketProviderProps) => {
   const [socket, setSocket] = useState<Socket | null>(null);
   const [isConnected, setIsConnected] = useState(false);
   const { user, isAuthenticated } = useAuth();
+  const userId = user?._id || user?.id;
 
   useEffect(() => {
-    if (!isAuthenticated || !user) {
-      // Disconnect if user logs out
-      if (socket) {
-        socket.disconnect();
-        setSocket(null);
-        setIsConnected(false);
-      }
+    if (!isAuthenticated || !userId) {
+      setSocket((current) => {
+        current?.disconnect();
+        return null;
+      });
+      setIsConnected(false);
       return;
     }
 
@@ -51,13 +51,8 @@ export const SocketProvider = ({ children }: SocketProviderProps) => {
     newSocket.on("connect", () => {
       console.log("Socket.IO connected:", newSocket.id);
       setIsConnected(true);
-
-      // Join user's room for receiving messages
-      const userId = user._id || user.id;
-      if (userId) {
-        newSocket.emit("join-room", userId);
-        console.log("Joined room for user:", userId);
-      }
+      newSocket.emit("join-room", userId);
+      console.log("Joined room for user:", userId);
     });
 
     newSocket.on("disconnect", () => {
@@ -77,7 +72,7 @@ export const SocketProvider = ({ children }: SocketProviderProps) => {
       setSocket(null);
       setIsConnected(false);
     };
-  }, [isAuthenticated, user]);
+  }, [isAuthenticated, userId]);
 
   return (
     <SocketContext.Provider value={{ socket, isConnected }}>

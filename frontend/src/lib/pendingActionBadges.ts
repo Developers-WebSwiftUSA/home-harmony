@@ -9,6 +9,7 @@ export const SIDEBAR_PENDING_COUNT_KEYS: Record<
     Properties: "properties",
     Moderation: "properties",
     "Ad Campaigns": "adCampaigns",
+    "Gallery Photos": "galleryPurchases",
     Tours: "tours",
     "Password Resets": "passwordResets",
     Messages: "messages",

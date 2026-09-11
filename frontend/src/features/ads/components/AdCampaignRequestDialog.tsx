@@ -9,6 +9,8 @@ import { AdType } from "@/features/ads/types/adCampaign.types";
 import { formatCurrency } from "@/features/ads/lib/promotionDisplay";
 import { Property } from "@/types/models";
 import { toast } from "sonner";
+import { useAuth } from "@/context/AuthContext";
+import { getUserId } from "@/lib/userDisplay";
 import { cn } from "@/lib/utils";
 
 type Props = {
@@ -19,6 +21,8 @@ type Props = {
 
 export const AdCampaignRequestDialog = ({ open, onOpenChange, role }: Props) => {
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const userId = getUserId(user);
   const [propertyId, setPropertyId] = useState("");
   const [adType, setAdType] = useState<AdType>("advertisement");
   const [durationDays, setDurationDays] = useState(7);
@@ -34,15 +38,15 @@ export const AdCampaignRequestDialog = ({ open, onOpenChange, role }: Props) => 
   });
 
   const { data: propertiesData, isLoading: propertiesLoading } = useQuery({
-    queryKey: [role === "seller" ? "seller-properties-ads" : "agent-properties-ads"],
+    queryKey: [role === "seller" ? "seller-properties-ads" : "agent-properties-ads", userId],
     queryFn: () => (role === "seller" ? propertyService.mine() : propertyService.agent()),
-    enabled: open,
+    enabled: open && Boolean(userId),
   });
 
   const { data: existingCampaignsData } = useQuery({
-    queryKey: ["ad-campaigns", role, "eligible-filter"],
+    queryKey: ["ad-campaigns", role, "eligible-filter", userId],
     queryFn: () => adCampaignService.list({ limit: 100 }),
-    enabled: open,
+    enabled: open && Boolean(userId),
   });
 
   const busyPropertyIds = useMemo(() => {

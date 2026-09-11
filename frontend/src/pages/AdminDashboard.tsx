@@ -1,9 +1,8 @@
 import { Link, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Users, Home, Calendar, CalendarCheck, BarChart3, Shield, Bell, MessageSquare, Settings, LogOut, Eye, KeyRound, Heart, Star, Bookmark, Search, FileText, UserCheck, Megaphone, HelpCircle, Newspaper } from "lucide-react";
+import { LayoutDashboard, Users, Home, Calendar, CalendarCheck, BarChart3, Shield, Bell, MessageSquare, Settings, LogOut, Eye, KeyRound, Heart, Star, Bookmark, Search, FileText, UserCheck, Megaphone, HelpCircle, Newspaper, Images, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import property1 from "@/assets/property-1.jpg";
-import property2 from "@/assets/property-2.jpg";
 import { userService } from "@/services/user.service";
 import { propertyService } from "@/services/property.service";
 import { tourService } from "@/services/tour.service";
@@ -19,17 +18,6 @@ import { liveQueryOptions } from "@/lib/liveQuery";
 import { usePendingActionCounts } from "@/hooks/usePendingActionCounts";
 import { formatPendingBadge, getSidebarPendingCount } from "@/lib/pendingActionBadges";
 import { getPropertyPrimaryImage } from "@/lib/propertyImage";
-
-const pendingProperties = [
-  { id: 1, title: "Luxury Villa in Miami", seller: "John Smith", image: property1, submitted: "2 hours ago" },
-  { id: 2, title: "Downtown Studio Apt", seller: "Jane Doe", image: property2, submitted: "5 hours ago" },
-];
-
-const recentUsers = [
-  { name: "Alice Johnson", role: "Buyer", email: "alice@email.com", status: "Active" },
-  { name: "Bob Williams", role: "Seller", email: "bob@email.com", status: "Active" },
-  { name: "Carol Davis", role: "Agent", email: "carol@email.com", status: "Pending" },
-];
 
 const DashboardSidebar = ({ active, role }: { active: string; role: string }) => {
   const navigate = useNavigate();
@@ -48,6 +36,8 @@ const DashboardSidebar = ({ active, role }: { active: string; role: string }) =>
       { icon: UserCheck, label: "Partners", href: "/admin/partners" },
       { icon: Home, label: "Properties", href: "/admin/properties" },
       { icon: Megaphone, label: "Ad Campaigns", href: "/admin/ad-campaigns" },
+      { icon: Images, label: "Gallery Photos", href: "/admin/gallery-photos" },
+      { icon: DollarSign, label: "Pricing", href: "/admin/pricing" },
       { icon: Newspaper, label: "News", href: "/admin/news" },
       { icon: Calendar, label: "Tours", href: "/admin/tours" },
       { icon: Star, label: "Feedback", href: "/admin/reviews" },
@@ -55,7 +45,7 @@ const DashboardSidebar = ({ active, role }: { active: string; role: string }) =>
       { icon: Shield, label: "Moderation", href: "/admin/moderation" },
       { icon: KeyRound, label: "Password Resets", href: "/admin/password-resets" },
       { icon: MessageSquare, label: "Messages", href: "/admin/messages" },
-      { icon: HelpCircle, label: "Help", href: "/admin/help" },
+      { icon: HelpCircle, label: "User Guide", href: "/admin/help" },
       { icon: Settings, label: "Settings", href: "/admin/settings" },
     ],
     buyer: [
@@ -68,7 +58,7 @@ const DashboardSidebar = ({ active, role }: { active: string; role: string }) =>
       { icon: Calendar, label: "My Tours", href: "/buyer/tours" },
       { icon: MessageSquare, label: "Messages", href: "/buyer/messages" },
       { icon: Bell, label: "Alerts", href: "/buyer/alerts" },
-      { icon: HelpCircle, label: "Help", href: "/buyer/help" },
+      { icon: HelpCircle, label: "User Guide", href: "/buyer/help" },
       { icon: Settings, label: "Settings", href: "/buyer/settings" },
     ],
     seller: [
@@ -81,7 +71,7 @@ const DashboardSidebar = ({ active, role }: { active: string; role: string }) =>
       { icon: Star, label: "Feedback", href: "/seller/reviews" },
       { icon: BarChart3, label: "Analytics", href: "/seller/analytics" },
       { icon: MessageSquare, label: "Messages", href: "/seller/messages" },
-      { icon: HelpCircle, label: "Help", href: "/seller/help" },
+      { icon: HelpCircle, label: "User Guide", href: "/seller/help" },
       { icon: Settings, label: "Settings", href: "/seller/settings" },
     ],
     agent: [
@@ -95,7 +85,7 @@ const DashboardSidebar = ({ active, role }: { active: string; role: string }) =>
       { icon: Star, label: "Feedback", href: "/agent/reviews" },
       { icon: BarChart3, label: "Performance", href: "/agent/performance" },
       { icon: MessageSquare, label: "Messages", href: "/agent/messages" },
-      { icon: HelpCircle, label: "Help", href: "/agent/help" },
+      { icon: HelpCircle, label: "User Guide", href: "/agent/help" },
       { icon: Settings, label: "Settings", href: "/agent/settings" },
     ],
   };
@@ -241,27 +231,25 @@ const AdminDashboard = () => {
         },
       ];
 
-  const moderationItems =
-    properties
-      .filter((p) => p.status === "pending")
-      .slice(0, 3)
-      .map((p) => ({
-        id: p._id,
-        title: p.title,
-        seller: `${p.sellerId?.firstName || ""} ${p.sellerId?.lastName || ""}`.trim() || p.sellerId?.email || "Seller",
-        image: getPropertyPrimaryImage(p.images, property1),
-        submitted: p.createdAt ? new Date(p.createdAt).toLocaleDateString() : "-",
-      })) || pendingProperties;
+  const moderationItems = properties
+    .filter((p) => p.status === "pending")
+    .slice(0, 3)
+    .map((p) => ({
+      id: p._id,
+      title: p.title,
+      seller: `${p.sellerId?.firstName || ""} ${p.sellerId?.lastName || ""}`.trim() || p.sellerId?.email || "Seller",
+      image: getPropertyPrimaryImage(p.images, property1),
+      submitted: p.createdAt ? new Date(p.createdAt).toLocaleDateString() : "-",
+    }));
 
-  const newestUsers =
-    users.slice(0, 5).map((u) => ({
-      id: u._id || u.id,
-      name: getDisplayName(u),
-      role: u.role?.charAt(0).toUpperCase() + u.role?.slice(1),
-      email: u.email,
-      status: u.status === "active" ? "Active" : u.status || "Active",
-      avatar: getAvatarUrl(u),
-    })) || recentUsers;
+  const newestUsers = users.slice(0, 5).map((u) => ({
+    id: u._id || u.id,
+    name: getDisplayName(u),
+    role: u.role?.charAt(0).toUpperCase() + u.role?.slice(1),
+    email: u.email,
+    status: u.status === "active" ? "Active" : u.status || "Active",
+    avatar: getAvatarUrl(u),
+  }));
 
   const sellerPartnerCount = sellersData?.data?.length || 0;
   const agentPartnerCount = agentsData?.data?.length || 0;
@@ -420,6 +408,9 @@ const AdminDashboard = () => {
               </Link>
             </div>
             <div className="space-y-3">
+              {newestUsers.length === 0 ? (
+                <p className="text-sm text-muted-foreground py-6 text-center">No users yet.</p>
+              ) : null}
               {newestUsers.map((listedUser) => (
                 <Link
                   key={listedUser.email}

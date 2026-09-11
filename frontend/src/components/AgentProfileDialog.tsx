@@ -24,6 +24,7 @@ type Props = {
   agentId: string | null;
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  variant?: "full" | "brief";
 };
 
 const StarRating = ({ rating, size = "md" }: { rating: number; size?: "sm" | "md" }) => (
@@ -40,7 +41,7 @@ const StarRating = ({ rating, size = "md" }: { rating: number; size?: "sm" | "md
   </div>
 );
 
-export const AgentProfileDialog = ({ agentId, open, onOpenChange }: Props) => {
+export const AgentProfileDialog = ({ agentId, open, onOpenChange, variant = "full" }: Props) => {
   const { data, isLoading, isError } = useQuery({
     queryKey: ["agent-public-profile", agentId],
     queryFn: () => userService.getAgentProfile(agentId!),
@@ -52,24 +53,35 @@ export const AgentProfileDialog = ({ agentId, open, onOpenChange }: Props) => {
   const locationLabel = [agent?.location?.city, agent?.location?.state, agent?.location?.country]
     .filter(Boolean)
     .join(", ");
+  const isBrief = variant === "brief";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+      <DialogContent
+        overlayClassName={isBrief ? "z-[60]" : undefined}
+        className={cn(
+          "max-h-[90vh] overflow-y-auto",
+          isBrief ? "z-[70] max-w-md sm:rounded-2xl" : "max-w-2xl"
+        )}
+      >
         {isLoading ? (
           <div className="py-12 text-center text-sm text-muted-foreground">Loading profile...</div>
         ) : isError || !profile || !agent ? (
           <div className="py-12 text-center text-sm text-muted-foreground">Could not load agent profile</div>
         ) : (
           <>
-            <DialogHeader>
+            <DialogHeader className={isBrief ? "items-center text-center sm:text-center" : undefined}>
               <DialogTitle className="sr-only">{getDisplayName(agent)} profile</DialogTitle>
             </DialogHeader>
 
-            <div className="flex flex-col sm:flex-row gap-5">
-              <UserAvatar user={agent} size="lg" className="w-20 h-20 text-xl" />
+            <div className={cn("flex gap-5", isBrief ? "flex-col items-center text-center" : "flex-col sm:flex-row")}>
+              <UserAvatar
+                user={agent}
+                size="lg"
+                className={isBrief ? "w-24 h-24 text-2xl border-primary/20" : "w-20 h-20 text-xl"}
+              />
               <div className="flex-1">
-                <div className="flex flex-wrap items-center gap-2 mb-1">
+                <div className={cn("flex flex-wrap items-center gap-2 mb-1", isBrief && "justify-center")}>
                   <h2 className="text-2xl font-heading font-bold text-foreground">
                     {getDisplayName(agent)}
                   </h2>
@@ -89,7 +101,7 @@ export const AgentProfileDialog = ({ agentId, open, onOpenChange }: Props) => {
                   </p>
                 ) : null}
 
-                <div className="flex flex-wrap items-center gap-4 text-sm">
+                <div className={cn("flex flex-wrap items-center gap-4 text-sm", isBrief && "justify-center")}>
                   <div className="flex items-center gap-2">
                     <StarRating rating={profile.averageRating} />
                     <span className="font-semibold text-foreground">{profile.averageRating.toFixed(1)}</span>
@@ -141,7 +153,12 @@ export const AgentProfileDialog = ({ agentId, open, onOpenChange }: Props) => {
               </div>
             )}
 
-            <div className="mt-5 space-y-2 text-sm">
+            <div
+              className={cn(
+                "mt-5 space-y-2 text-sm",
+                isBrief && "flex flex-col items-center rounded-xl bg-muted/70 border border-border px-4 py-3"
+              )}
+            >
               {agent.phone && (
                 <a href={`tel:${agent.phone}`} className="flex items-center gap-2 text-muted-foreground hover:text-primary">
                   <Phone className="w-4 h-4" /> {agent.phone}
@@ -159,6 +176,8 @@ export const AgentProfileDialog = ({ agentId, open, onOpenChange }: Props) => {
               )}
             </div>
 
+            {!isBrief && (
+              <>
             <div className="mt-6 pt-6 border-t border-border">
               <h3 className="text-lg font-heading font-bold text-foreground mb-4">Properties</h3>
               {(profile.properties || []).length === 0 ? (
@@ -235,6 +254,8 @@ export const AgentProfileDialog = ({ agentId, open, onOpenChange }: Props) => {
                 </div>
               )}
             </div>
+              </>
+            )}
           </>
         )}
       </DialogContent>

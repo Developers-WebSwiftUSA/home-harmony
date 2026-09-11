@@ -7,6 +7,7 @@ import { tourService } from "@/services/tour.service";
 import { Input } from "@/components/ui/input";
 import TourNotification from "@/components/tours/TourNotification";
 import { useAuth } from "@/context/AuthContext";
+import { getUserId } from "@/lib/userDisplay";
 import { DashboardTabPills } from "@/components/dashboard/DashboardTabPills";
 import type { Tour } from "@/types/models";
 
@@ -24,6 +25,7 @@ const tourMatchesPill = (tour: Tour, key: string) => {
 const SellerTours = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const userId = getUserId(user);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const role = user?.role === "agent" ? "agent" : "seller";
@@ -31,8 +33,9 @@ const SellerTours = () => {
   const toursQueryKey = role === "agent" ? "agent-tours" : "seller-tours";
 
   const { data, isLoading } = useQuery({
-    queryKey: [toursQueryKey],
+    queryKey: [toursQueryKey, userId],
     queryFn: () => tourService.list(),
+    enabled: Boolean(userId),
   });
 
   const allTours = data?.data || [];

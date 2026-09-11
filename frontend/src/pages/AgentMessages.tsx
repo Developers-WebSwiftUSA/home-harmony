@@ -9,10 +9,13 @@ import { useSearchParams } from "react-router-dom";
 import { useSocket } from "@/context/SocketContext";
 import { Message } from "@/types/models";
 import { useUserIdConversationDeepLink, findSelectedConversation } from "@/hooks/useUserIdConversationDeepLink";
+import { getUserId } from "@/lib/userDisplay";
 
 const AgentMessages = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const userId = getUserId(user);
+  const conversationsQueryKey = ["agent-conversations", userId];
   const { socket } = useSocket();
   const [searchParams] = useSearchParams();
   const [selectedConversation, setSelectedConversation] = useState<string | null>(
@@ -28,15 +31,16 @@ const AgentMessages = () => {
   }, [searchParams]);
 
   const openedConversation = useUserIdConversationDeepLink({
-    conversationsQueryKey: ["agent-conversations"],
+    conversationsQueryKey,
     messagesPath: "/agent/messages",
     selectedConversation,
     setSelectedConversation,
   });
 
   const { data: conversationsData } = useQuery({
-    queryKey: ["agent-conversations"],
+    queryKey: conversationsQueryKey,
     queryFn: () => messageService.conversations(),
+    enabled: Boolean(userId),
   });
 
   const conversations = conversationsData?.data || [];
@@ -44,9 +48,9 @@ const AgentMessages = () => {
   const selectedConv = findSelectedConversation(conversations, selectedConversation, openedConversation);
 
   const { data: messagesData, isLoading: messagesLoading } = useQuery({
-    queryKey: ["conversation-messages", selectedConversation],
+    queryKey: ["conversation-messages", userId, selectedConversation],
     queryFn: () => messageService.getMessages(selectedConversation || ""),
-    enabled: Boolean(selectedConversation),
+    enabled: Boolean(userId && selectedConv),
     // Removed refetchInterval - using Socket.IO for real-time updates
   });
 
@@ -63,7 +67,7 @@ const AgentMessages = () => {
       
       if (String(messageConvId) === String(currentConvId)) {
         // Invalidate and refetch messages for this conversation
-        queryClient.invalidateQueries({ queryKey: ["conversation-messages", selectedConversation] });
+        queryClient.invalidateQueries({ queryKey: ["conversation-messages"] });
         queryClient.invalidateQueries({ queryKey: ["agent-conversations"] });
       } else {
         // Just update conversations list
@@ -107,7 +111,7 @@ const AgentMessages = () => {
     mutationFn: (payload: { conversationId: string; content: string }) => messageService.send(payload),
     onSuccess: () => {
       setMessageText("");
-      queryClient.invalidateQueries({ queryKey: ["conversation-messages", selectedConversation] });
+      queryClient.invalidateQueries({ queryKey: ["conversation-messages"] });
       queryClient.invalidateQueries({ queryKey: ["agent-conversations"] });
     },
   });

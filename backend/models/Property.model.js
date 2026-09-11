@@ -101,6 +101,11 @@ const propertySchema = new mongoose.Schema({
       default: false
     }
   }],
+  paidGallerySlots: {
+    type: Number,
+    default: 0,
+    min: 0
+  },
   // Features and amenities
   amenities: [{
     type: String

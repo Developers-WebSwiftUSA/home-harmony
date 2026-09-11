@@ -2,15 +2,17 @@ import { useQuery } from "@tanstack/react-query";
 import { DashboardSidebar } from "./AdminDashboard";
 import { analyticsService } from "@/services/analytics.service";
 import { useAuth } from "@/context/AuthContext";
+import { getUserId } from "@/lib/userDisplay";
 import { formatOverviewValue } from "@/lib/analyticsDisplay";
 import { DashboardTabPills } from "@/components/dashboard/DashboardTabPills";
 
 const SellerAnalytics = () => {
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
+  const userId = getUserId(user);
   const { data, isLoading } = useQuery({
-    queryKey: ["seller-analytics"],
+    queryKey: ["seller-analytics", userId],
     queryFn: () => analyticsService.seller(),
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && Boolean(userId),
   });
 
   const analytics = data?.data;

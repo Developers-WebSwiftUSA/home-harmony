@@ -12,10 +12,11 @@ describe("helpRoutes", () => {
     expect(getHelpForRoute("/buyer").id).toBe("buyer-dashboard");
   });
 
-  it("returns buyer help manuals", () => {
-    const manuals = getManualsForRole("buyer");
-    expect(manuals.length).toBeGreaterThan(5);
-    expect(manuals.some((m) => m.id === "buyer-favorites")).toBe(true);
+  it("resolves dashboard user guide manuals", () => {
+    expect(getHelpForRoute("/admin/pricing").id).toBe("admin-pricing");
+    expect(getHelpForRoute("/agent/settings").id).toBe("agent-settings");
+    expect(getHelpForRoute("/seller/promotions").id).toBe("seller-promotions");
+    expect(getHelpForRoute("/buyer/help").id).toBe("dashboard-help");
   });
 });
 

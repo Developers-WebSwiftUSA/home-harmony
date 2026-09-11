@@ -232,7 +232,7 @@ export const HELP_MANUALS: Record<string, HelpManual> = {
       {
         title: "Redirect after login",
         description: "If you came from a protected link (e.g. create listing), you'll return there automatically after signing in.",
-        tips: ["Use Forgot Password if you can't access your account."],
+        tips: ["Use Forgot Password if you can't access your account.", "Agents can add an optional preferred map area at signup, or later in Settings."],
       },
     ],
   },
@@ -273,11 +273,11 @@ export const HELP_MANUALS: Record<string, HelpManual> = {
       },
       {
         title: "Get help anytime",
-        description: "Click the ? button at the bottom-right for page-specific guides, or open Help in the sidebar for all buyer features.",
+        description: "Click User Guide at the bottom-right for page-specific guides, or open User Guide in the sidebar for all buyer features.",
         visual: "help-fab",
       },
     ],
-    relatedLinks: [{ label: "Full buyer help center", href: "/buyer/help" }],
+    relatedLinks: [{ label: "Full buyer user guide", href: "/buyer/help" }],
   },
 
   "buyer-favorites": {
@@ -431,7 +431,7 @@ export const HELP_MANUALS: Record<string, HelpManual> = {
         visual: "sidebar-nav",
       },
     ],
-    relatedLinks: [{ label: "Full seller help center", href: "/seller/help" }],
+    relatedLinks: [{ label: "Full seller user guide", href: "/seller/help" }],
   },
 
   "seller-listings": {
@@ -477,7 +477,8 @@ export const HELP_MANUALS: Record<string, HelpManual> = {
       },
       {
         title: "Upload photos & submit",
-        description: "Add at least one image, select amenities, then save. New listings go to admin approval and stay off the public site until approved.",
+        description: "Add a main photo plus a gallery. The first 3 gallery photos are free. Extra photos stay private until you Pay to Go and admin approves payment.",
+        tips: ["Save a new listing first, then unlock extra photos from Edit listing."],
       },
     ],
   },
@@ -642,7 +643,7 @@ export const HELP_MANUALS: Record<string, HelpManual> = {
         visual: "sidebar-nav",
       },
     ],
-    relatedLinks: [{ label: "Full agent help center", href: "/agent/help" }],
+    relatedLinks: [{ label: "Full agent user guide", href: "/agent/help" }],
   },
 
   "agent-clients": {
@@ -806,6 +807,11 @@ export const HELP_MANUALS: Record<string, HelpManual> = {
         description: "Update bio, avatar, and contact info shown on the Agents page.",
         visual: "auth-form",
       },
+      {
+        title: "Preferred area",
+        description: "Optionally search the map and set a service radius. Sellers assigning an agent to nearby listings will see you higher in Suggested nearby.",
+        visual: "map-search",
+      },
     ],
   },
 
@@ -826,7 +832,7 @@ export const HELP_MANUALS: Record<string, HelpManual> = {
         visual: "table-actions",
       },
     ],
-    relatedLinks: [{ label: "Full admin help center", href: "/admin/help" }],
+    relatedLinks: [{ label: "Full admin user guide", href: "/admin/help" }],
   },
 
   "admin-users": {
@@ -930,12 +936,50 @@ export const HELP_MANUALS: Record<string, HelpManual> = {
       },
       {
         title: "Approve & activate",
-        description: "Approve to charge and activate badges. Campaigns auto-expire after the paid period.",
+        description: "Approve to charge and activate badges. Campaigns auto-expire after the paid period. Daily rates are set on the Pricing page.",
         visual: "table-actions",
       },
       {
         title: "Customer billing",
         description: "Click a payment to open that customer’s billing history and bill details. Search by name, email, or invoice number (for example HTG-AD-BC123XYZ), then download a House Tour Guide letterhead invoice PDF.",
+      },
+    ],
+  },
+
+  "admin-gallery-photos": {
+    id: "admin-gallery-photos",
+    title: "Gallery Pay to Go",
+    summary: "Approve extra-photo payments and manage unlocked gallery slots.",
+    role: "admin",
+    steps: [
+      {
+        title: "Review requests",
+        description: "Sellers can add as many gallery photos as they want. The main photo and first 3 gallery photos are free. Extra photos stay private until you approve Pay to Go.",
+        visual: "table-actions",
+      },
+      {
+        title: "Price and complimentary slots",
+        description: "Grant or revoke paid slots on listings that already have extra photos. Extra-photo rates are set on the Pricing page, not here.",
+        visual: "dashboard-stats",
+      },
+    ],
+  },
+
+  "admin-pricing": {
+    id: "admin-pricing",
+    title: "Pricing",
+    summary: "Set extra gallery photo and ad campaign rates.",
+    role: "admin",
+    steps: [
+      {
+        title: "Extra gallery photos",
+        description: "The main photo and first 3 gallery photos stay free. Set the price charged for each extra photo after admin approval.",
+        visual: "dashboard-stats",
+      },
+      {
+        title: "Ad campaigns",
+        description: "Set the daily rate for Advertisement and Sponsored promotions. New requests use these rates; existing requests keep the amount already submitted.",
+        visual: "promotion",
       },
     ],
   },
@@ -1081,7 +1125,7 @@ export const HELP_MANUALS: Record<string, HelpManual> = {
 
   "dashboard-help": {
     id: "dashboard-help",
-    title: "Help Center",
+    title: "User Guide",
     summary: "Browse manuals for every feature in your dashboard.",
     role: "public",
     steps: [
@@ -1091,8 +1135,8 @@ export const HELP_MANUALS: Record<string, HelpManual> = {
         visual: "help-fab",
       },
       {
-        title: "Page-specific help",
-        description: "On any page, click the floating ? button at the bottom-right for a guide focused on that screen.",
+        title: "Page-specific guide",
+        description: "On any page, click User Guide at the bottom-right for a guide focused on that screen.",
         visual: "help-fab",
       },
     ],
@@ -1100,7 +1144,7 @@ export const HELP_MANUALS: Record<string, HelpManual> = {
 
   "generic-page": {
     id: "generic-page",
-    title: "Page Help",
+    title: "User Guide",
     summary: "Quick tips for using this page.",
     role: "public",
     steps: [
@@ -1111,7 +1155,7 @@ export const HELP_MANUALS: Record<string, HelpManual> = {
       },
       {
         title: "Need more help?",
-        description: "Open the Help section in your dashboard for complete feature manuals, or visit Contact Us.",
+        description: "Open User Guide in your dashboard for complete feature manuals, or visit Contact Us.",
         visual: "help-fab",
       },
     ],
@@ -1127,6 +1171,8 @@ export const ROLE_HELP_ORDER: Record<string, string[]> = {
     "admin-properties",
     "admin-property-review",
     "admin-ad-campaigns",
+    "admin-gallery-photos",
+    "admin-pricing",
     "admin-news",
     "admin-tours",
     "tour-detail",

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useState } from "react";
 import { MapContainer, TileLayer, Marker, Circle, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -19,6 +19,7 @@ import { useDistanceUnit } from "@/context/DistanceUnitContext";
 import { PlaceSearchInput } from "@/components/PlaceSearchInput";
 import { DistanceUnitToggle } from "@/components/DistanceUnitToggle";
 import { useUserLocation } from "@/hooks/useUserLocation";
+import { PlaceSuggestion } from "@/lib/geocoding";
 
 const DEFAULT_CENTER: [number, number] = [39.8283, -98.5795];
 
@@ -46,20 +47,27 @@ const MapAreaSync = ({ area }: { area: MapSearchArea }) => {
 type Props = {
   value: MapSearchArea;
   onChange: (value: MapSearchArea) => void;
+  onPlaceSelect?: (place: PlaceSuggestion) => void;
   className?: string;
   title?: string;
   description?: string;
   mapHeightClassName?: string;
+  radiusHelpText?: string;
+  selectedAreaHint?: string;
 };
 
 export const MapRadiusSearchPicker = ({
   value,
   onChange,
+  onPlaceSelect,
   className,
   title = "Search by map area",
   description = "Search for a place, click the map to choose a center point, or set a radius to filter listings nearby.",
   mapHeightClassName = "h-56",
+  radiusHelpText,
+  selectedAreaHint,
 }: Props) => {
+  const mapInstanceId = useId();
   const { formatRadiusLabel, formatDistance, toDisplayValue, fromDisplayValue, maxRadius, unitShort } =
     useDistanceUnit();
   const [placeQuery, setPlaceQuery] = useState("");
@@ -142,6 +150,10 @@ export const MapRadiusSearchPicker = ({
         onChange={setPlaceQuery}
         onSelect={(place) => {
           setPlaceQuery(place.label);
+          if (onPlaceSelect) {
+            onPlaceSelect(place);
+            return;
+          }
           setCenter(place.latitude, place.longitude);
         }}
         placeholder="Search city, address, or landmark..."
@@ -152,6 +164,7 @@ export const MapRadiusSearchPicker = ({
           <DistanceUnitToggle size="sm" />
         </div>
         <MapContainer
+          key={mapInstanceId}
           center={center}
           zoom={hasCenter || userCenter ? 12 : 4}
           className="h-full w-full"
@@ -232,14 +245,15 @@ export const MapRadiusSearchPicker = ({
               </span>
             </div>
             <p className="text-[11px] text-muted-foreground mt-2">
-              Leave at &quot;Any distance&quot; to apply a default {DEFAULT_MAP_SEARCH_RADIUS_MILES}-mile
-              radius when you search by map pin.
+              {radiusHelpText ||
+                `Leave at "Any distance" to apply a default ${DEFAULT_MAP_SEARCH_RADIUS_MILES}-mile radius when you search by map pin.`}
             </p>
           </div>
 
           {radiusMiles != null && radiusMiles > 0 && (
             <p className="text-xs text-primary bg-primary/10 border border-primary/20 rounded-lg px-3 py-2">
-              Showing listings within {formatDistance(radiusMiles)} of the selected point.
+              {selectedAreaHint ||
+                `Showing listings within ${formatDistance(radiusMiles)} of the selected point.`}
             </p>
           )}
         </div>

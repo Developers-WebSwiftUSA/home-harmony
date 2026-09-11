@@ -11,7 +11,6 @@ import { getPropertyPrimaryImage } from "@/lib/propertyImage";
 import { propertyService } from "@/services/property.service";
 import { AssignAgentControl } from "@/components/AssignAgentControl";
 import { PropertyViewershipControl } from "@/components/PropertyViewershipControl";
-import { getDisplayName } from "@/lib/userDisplay";
 import { toast } from "sonner";
 import {
   AlertDialog,
@@ -25,9 +24,13 @@ import {
 } from "@/components/ui/alert-dialog";
 import { DashboardTabPills, listingTypeTabs } from "@/components/dashboard/DashboardTabPills";
 import { isRentalListing } from "@/features/rentals/lib/rentalFormat";
+import { useAuth } from "@/context/AuthContext";
+import { getUserId } from "@/lib/userDisplay";
 
 const SellerListings = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const userId = getUserId(user);
   const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("All");
@@ -35,8 +38,9 @@ const SellerListings = () => {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["seller-listings"],
+    queryKey: ["seller-listings", userId],
     queryFn: () => propertyService.mine(),
+    enabled: Boolean(userId),
   });
 
   const deleteMutation = useMutation({
@@ -249,11 +253,6 @@ const SellerListings = () => {
                       <UserCheck className="w-4 h-4 text-muted-foreground" />
                       <span className="text-sm font-medium text-foreground">Assigned Agent</span>
                     </div>
-                    {listing.raw.agentId && typeof listing.raw.agentId === "object" && (
-                      <p className="text-xs text-muted-foreground mb-2">
-                        Current: {getDisplayName(listing.raw.agentId)} ({listing.raw.agentId.email})
-                      </p>
-                    )}
                     <AssignAgentControl
                       propertyId={listing.id}
                       currentAgent={listing.raw.agentId}

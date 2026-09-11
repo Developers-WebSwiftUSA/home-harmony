@@ -4,6 +4,8 @@ import { Megaphone, Plus, Clock, CheckCircle2, XCircle, Loader2 } from "lucide-r
 import { DashboardSidebar } from "./AdminDashboard";
 import { Button } from "@/components/ui/button";
 import { adCampaignService } from "@/services/adCampaign.service";
+import { useAuth } from "@/context/AuthContext";
+import { getUserId } from "@/lib/userDisplay";
 import { AdCampaignRequestDialog } from "@/features/ads/components/AdCampaignRequestDialog";
 import { DashboardTabPills } from "@/components/dashboard/DashboardTabPills";
 import {
@@ -51,13 +53,16 @@ const getPropertyFromCampaign = (campaign: AdCampaign): Property | null => {
 
 const AdCampaigns = ({ role }: Props) => {
   const config = pageConfig[role];
+  const { user } = useAuth();
+  const userId = getUserId(user);
   const queryClient = useQueryClient();
   const [tab, setTab] = useState("all");
   const [dialogOpen, setDialogOpen] = useState(false);
 
   const { data, isLoading } = useQuery({
-    queryKey: ["ad-campaigns", role, "all"],
+    queryKey: ["ad-campaigns", role, "all", userId],
     queryFn: () => adCampaignService.list({ limit: 100 }),
+    enabled: Boolean(userId),
   });
 
   const allCampaigns = data?.data || [];

@@ -1,7 +1,9 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { useSearchParams } from "react-router-dom";
 import { DashboardSidebar } from "./AdminDashboard";
+import { useAuth } from "@/context/AuthContext";
+import { getUserId } from "@/lib/userDisplay";
 import { crmService } from "@/services/crm.service";
 import { DashboardTabPills, marketTabs } from "@/components/dashboard/DashboardTabPills";
 import { BuyerCrmPanel } from "@/components/dashboard/BuyerCrmPanel";
@@ -14,31 +16,35 @@ type Props = {
 };
 
 const BuyerCrm = ({ role, sidebarActive, messagePath }: Props) => {
+  const { user } = useAuth();
+  const userId = getUserId(user);
   const [searchParams, setSearchParams] = useSearchParams();
   const market = (searchParams.get("market") === "rent" ? "rent" : "sale") as CrmMarket;
   const [selectedBuyerId, setSelectedBuyerId] = useState<string | null>(null);
 
-  const { data: saleData } = useQuery({
-    queryKey: ["crm-buyers", role, "sale"],
+  useEffect(() => {
+    setSelectedBuyerId(null);
+  }, [userId]);
+
+  const { data: saleData, isLoading: saleLoading } = useQuery({
+    queryKey: ["crm-buyers", role, "sale", userId],
     queryFn: () => crmService.myBuyers("sale"),
+    enabled: Boolean(userId),
   });
-  const { data: rentData } = useQuery({
-    queryKey: ["crm-buyers", role, "rent"],
+  const { data: rentData, isLoading: rentLoading } = useQuery({
+    queryKey: ["crm-buyers", role, "rent", userId],
     queryFn: () => crmService.myBuyers("rent"),
+    enabled: Boolean(userId),
   });
 
   const { data: detailData, isLoading: detailLoading } = useQuery({
-    queryKey: ["crm-buyer-detail", role, market, selectedBuyerId],
+    queryKey: ["crm-buyer-detail", role, market, selectedBuyerId, userId],
     queryFn: () => crmService.myBuyerDetail(selectedBuyerId!, market),
-    enabled: Boolean(selectedBuyerId),
+    enabled: Boolean(userId && selectedBuyerId),
   });
 
-  const { data: buyersData, isLoading } = useQuery({
-    queryKey: ["crm-buyers", role, market],
-    queryFn: () => crmService.myBuyers(market),
-  });
-
-  const buyers = buyersData?.data || [];
+  const buyers = (market === "rent" ? rentData?.data : saleData?.data) || [];
+  const isLoading = market === "rent" ? rentLoading : saleLoading;
   const saleCount = saleData?.data?.length || 0;
   const rentCount = rentData?.data?.length || 0;
 

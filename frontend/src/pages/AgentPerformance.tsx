@@ -5,11 +5,12 @@ import { useAuth } from "@/context/AuthContext";
 import { DashboardTabPills } from "@/components/dashboard/DashboardTabPills";
 
 const AgentPerformance = () => {
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
+  const agentUserId = user?._id || user?.id;
   const { data, isLoading } = useQuery({
-    queryKey: ["agent-analytics"],
+    queryKey: ["agent-analytics", agentUserId],
     queryFn: () => analyticsService.agent(),
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && Boolean(agentUserId),
   });
 
   const analytics = data?.data;

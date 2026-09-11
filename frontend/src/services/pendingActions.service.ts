@@ -6,6 +6,7 @@ export type PendingActionCounts = {
   users: number;
   passwordResets: number;
   adCampaigns: number;
+  galleryPurchases: number;
   tours: number;
   applications: number;
   messages: number;

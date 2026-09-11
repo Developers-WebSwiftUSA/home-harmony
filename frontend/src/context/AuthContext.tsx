@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { authService } from "@/services/auth.service";
-import { User, UserRole } from "@/types/models";
+import { AgentPreferredArea, User, UserRole } from "@/types/models";
 import { normalizeUser } from "@/lib/userDisplay";
 import { clearAuthToken, getAuthToken, setAuthToken } from "@/lib/auth-token";
 
@@ -18,6 +19,7 @@ type AuthContextType = {
     lastName?: string;
     phone?: string;
     avatar?: string;
+    preferredArea?: AgentPreferredArea | null;
   }) => Promise<User>;
   logout: () => void;
   updateUser: (user: User) => void;
@@ -28,6 +30,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 const USER_KEY = "auth_user";
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  const queryClient = useQueryClient();
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(() => getAuthToken());
   const [isLoading, setIsLoading] = useState(true);
@@ -76,6 +79,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const response = await authService.login(email, password);
     const nextUser = response.data.user;
     const nextToken = response.data.token;
+    await queryClient.cancelQueries();
+    queryClient.clear();
     persist(nextUser, nextToken);
     return nextUser;
   };
@@ -88,10 +93,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     lastName?: string;
     phone?: string;
     avatar?: string;
+    preferredArea?: AgentPreferredArea | null;
   }) => {
     const response = await authService.register(payload);
     const nextUser = response.data.user;
     const nextToken = response.data.token;
+    await queryClient.cancelQueries();
+    queryClient.clear();
     persist(nextUser, nextToken);
     return nextUser;
   };
@@ -101,6 +109,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     setToken(null);
     clearAuthToken();
     localStorage.removeItem(USER_KEY);
+    queryClient.cancelQueries();
+    queryClient.clear();
   };
 
   const updateUser = (updatedUser: User, newToken?: string) => {

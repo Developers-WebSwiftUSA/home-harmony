@@ -6,11 +6,16 @@ import { isRentalListing } from "@/features/rentals/lib/rentalFormat";
 import { getPropertyDetailPath } from "@/lib/propertyRoutes";
 import property1 from "@/assets/property-1.jpg";
 import { getPropertyPrimaryImage } from "@/lib/propertyImage";
+import { useAuth } from "@/context/AuthContext";
+import { getUserId } from "@/lib/userDisplay";
 
 const BuyerFavorites = () => {
+  const { user } = useAuth();
+  const userId = getUserId(user);
   const { data, isLoading } = useQuery({
-    queryKey: ["buyer-favorites-page"],
+    queryKey: ["buyer-favorites-page", userId],
     queryFn: () => favoriteService.list(),
+    enabled: Boolean(userId),
   });
 
   const favorites = (data?.data || []).filter(

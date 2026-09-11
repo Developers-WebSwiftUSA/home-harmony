@@ -10,6 +10,7 @@ import {
   applyMapRadiusSearch,
   ensurePropertyCoordinates,
 } from '../utils/propertyLocation.js';
+import { limitImagesForPublic } from '../utils/galleryPricing.js';
 
 const EARTH_RADIUS_MILES = 3963.2;
 
@@ -41,9 +42,23 @@ const publicViewershipFilter = { viewershipEnabled: { $ne: false } };
 const canManageProperty = (property, user) => {
   if (!user) return false;
   if (user.role === 'admin') return true;
-  if (property.sellerId?.toString() === user.id) return true;
-  if (property.agentId?.toString() === user.id) return true;
+  const sellerId = property.sellerId?._id?.toString() || property.sellerId?.toString();
+  const agentId = property.agentId?._id?.toString() || property.agentId?.toString();
+  if (sellerId === user.id) return true;
+  if (agentId === user.id) return true;
   return false;
+};
+
+const toPublicProperty = (property, user) => {
+  const obj = typeof property.toObject === 'function' ? property.toObject() : { ...property };
+  if (canManageProperty(property, user)) return obj;
+  obj.images = limitImagesForPublic(obj.images, obj.paidGallerySlots);
+  return obj;
+};
+
+const stripPaidSlotFields = (body, user) => {
+  if (user?.role === 'admin') return;
+  delete body.paidGallerySlots;
 };
 
 // @desc    Get all properties
@@ -228,7 +243,7 @@ export const getProperties = asyncHandler(async (req, res) => {
     total,
     page: parsedPage,
     pages: Math.ceil(total / parsedLimit),
-    data: properties
+    data: properties.map((property) => toPublicProperty(property, req.user))
   });
 });
 
@@ -277,7 +292,7 @@ export const getProperty = asyncHandler(async (req, res) => {
 
   res.status(200).json({
     success: true,
-    data: property
+    data: toPublicProperty(property, req.user)
   });
 });
 
@@ -288,6 +303,7 @@ export const createProperty = asyncHandler(async (req, res) => {
   req.body.sellerId = req.user.id;
   delete req.body.approvedBy;
   delete req.body.approvedAt;
+  stripPaidSlotFields(req.body, req.user);
 
   // Sellers cannot publish live — new listings always wait for admin approval.
   if (req.user.role !== 'admin') {
@@ -370,6 +386,7 @@ export const updateProperty = asyncHandler(async (req, res) => {
       req.body.status = 'pending';
     }
   }
+  stripPaidSlotFields(req.body, req.user);
 
   if (req.body.location) {
     req.body.location = await ensurePropertyCoordinates(req.body.location);
@@ -641,7 +658,7 @@ export const searchNearby = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
     count: properties.length,
-    data: properties
+    data: properties.map((property) => toPublicProperty(property, req.user))
   });
 });
 

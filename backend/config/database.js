@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { seedSuperAdmin, seedSampleNews } from './seed.js';
 import { migrateConversationIndexes } from './migrateConversations.js';
+import { migrateGallerySlotAllowance } from './migrateGallerySlots.js';
 
 const connectDB = async () => {
   try {
@@ -22,6 +23,7 @@ const connectDB = async () => {
     await seedSuperAdmin();
     await seedSampleNews();
     await migrateConversationIndexes();
+    await migrateGallerySlotAllowance();
   } catch (error) {
     console.error(`Error: ${error.message}`);
     process.exit(1);

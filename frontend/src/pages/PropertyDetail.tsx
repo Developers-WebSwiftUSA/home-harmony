@@ -6,7 +6,8 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import Navbar from "@/components/landing/Navbar";
 import Footer from "@/components/landing/Footer";
 import property1 from "@/assets/property-1.jpg";
-import { getPropertyPrimaryImage } from "@/lib/propertyImage";
+import { getAllPropertyImageUrls } from "@/lib/propertyImage";
+import { RentalCardCarousel } from "@/features/rentals/components/RentalCardCarousel";
 import agent1 from "@/assets/agent-1.jpg";
 import { propertyService } from "@/services/property.service";
 import { messageService } from "@/services/message.service";
@@ -112,8 +113,10 @@ const PropertyDetail = () => {
     return <Navigate to={getPropertyDetailPath(apiProperty)} replace />;
   }
 
+  const galleryImages = getAllPropertyImageUrls(apiProperty.images);
+  const displayImages = galleryImages.length ? galleryImages : [property1];
+
   const property = {
-    image: getPropertyPrimaryImage(apiProperty.images, property1),
     title: apiProperty.title,
     location: [apiProperty.location?.address, apiProperty.location?.city, apiProperty.location?.state]
       .filter(Boolean)
@@ -181,9 +184,8 @@ const PropertyDetail = () => {
             <ArrowLeft className="w-4 h-4" /> Back to Properties
           </Link>
 
-          {/* Hero Image */}
-          <div className="rounded-xl overflow-hidden h-[300px] md:h-[450px] mb-8">
-            <img src={property.image} alt={property.title} className="w-full h-full object-cover" />
+          <div className="group rounded-xl overflow-hidden h-[300px] md:h-[450px] mb-8 border border-border">
+            <RentalCardCarousel images={displayImages} alt={property.title} className="h-full" />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">

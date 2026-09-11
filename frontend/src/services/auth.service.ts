@@ -1,6 +1,6 @@
 import { apiRequest } from "@/api/client";
 import { ApiResponse } from "@/types/api";
-import { User } from "@/types/models";
+import { AgentPreferredArea, User } from "@/types/models";
 
 type AuthPayload = {
   user: User;
@@ -22,6 +22,7 @@ export const authService = {
     lastName?: string;
     phone?: string;
     avatar?: string;
+    preferredArea?: AgentPreferredArea | null;
   }) =>
     apiRequest<ApiResponse<AuthPayload>>("/auth/register", {
       method: "POST",

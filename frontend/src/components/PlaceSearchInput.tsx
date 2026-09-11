@@ -67,6 +67,11 @@ export const PlaceSearchInput = ({
             setOpen(true);
           }}
           onFocus={() => setOpen(true)}
+          onKeyDown={(e) => {
+            if (e.key !== "Enter") return;
+            e.preventDefault();
+            if (placeResults[0]) handleSelect(placeResults[0]);
+          }}
           placeholder={placeholder}
           className={cn("pl-9", inputClassName)}
           autoComplete="off"

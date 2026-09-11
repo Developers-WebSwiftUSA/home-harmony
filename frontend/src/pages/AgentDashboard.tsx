@@ -42,57 +42,50 @@ const getProgressStats = (properties: Property[]) => {
   };
 };
 
-const clients = [
-  { name: "Alice Johnson", type: "Buyer", status: "Active", lastContact: "Today" },
-  { name: "Bob Williams", type: "Seller", status: "Active", lastContact: "Yesterday" },
-  { name: "Carol Davis", type: "Buyer", status: "Lead", lastContact: "3 days ago" },
-  { name: "Dan Miller", type: "Seller", status: "Closed", lastContact: "1 week ago" },
-];
-
-const upcomingEvents = [
-  { title: "Property Showing - Downtown Apt", time: "10:00 AM", client: "Alice Johnson", type: "Tour" },
-  { title: "Client Meeting - Bob Williams", time: "1:00 PM", client: "Bob Williams", type: "Meeting" },
-  { title: "Open House - Garden Residence", time: "3:00 PM", client: "Walk-ins", type: "Open House" },
-];
-
 const AgentDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<DashboardTab>("overview");
+  const agentUserId = user?._id || user?.id;
 
   const { data: toursData, isLoading: loadingTours } = useQuery({
-    queryKey: ["agent-dashboard-tours"],
+    queryKey: ["agent-dashboard-tours", agentUserId],
     queryFn: () => tourService.list(),
+    enabled: Boolean(agentUserId),
   });
   const { data: completedToursData, isLoading: loadingReviews } = useQuery({
-    queryKey: ["agent-dashboard-reviews"],
+    queryKey: ["agent-dashboard-reviews", agentUserId],
     queryFn: () => tourService.listReviews({ limit: 500 }),
+    enabled: Boolean(agentUserId),
   });
   const { data: conversationsData } = useQuery({
-    queryKey: ["agent-dashboard-conversations"],
+    queryKey: ["agent-dashboard-conversations", agentUserId],
     queryFn: () => messageService.conversations(),
+    enabled: Boolean(agentUserId),
   });
   const { data: propertiesData, isLoading: loadingProperties } = useQuery({
-    queryKey: ["agent-dashboard-properties"],
+    queryKey: ["agent-dashboard-properties", agentUserId],
     queryFn: () => propertyService.agent(),
+    enabled: Boolean(agentUserId),
   });
   const { data: profileData } = useQuery({
-    queryKey: ["agent-dashboard-profile"],
+    queryKey: ["agent-dashboard-profile", agentUserId],
     queryFn: () => authService.me(),
-    enabled: Boolean(user),
+    enabled: Boolean(agentUserId),
   });
   const { data: saleBuyersData } = useQuery({
-    queryKey: ["crm-buyers", "agent", "sale"],
+    queryKey: ["crm-buyers", "agent", "sale", agentUserId],
     queryFn: () => crmService.myBuyers("sale"),
+    enabled: Boolean(agentUserId),
   });
   const { data: rentBuyersData } = useQuery({
-    queryKey: ["crm-buyers", "agent", "rent"],
+    queryKey: ["crm-buyers", "agent", "rent", agentUserId],
     queryFn: () => crmService.myBuyers("rent"),
+    enabled: Boolean(agentUserId),
   });
 
   const tours = toursData?.data || [];
   const completedTours = completedToursData?.data || [];
-  const agentUserId = user?._id || user?.id;
   const conversations = conversationsData?.data || [];
   const assignedProperties = propertiesData?.data || [];
   const agentRating = getAgentRating(profileData?.data || user);
@@ -106,6 +99,11 @@ const AgentDashboard = () => {
     (p) => p.listingType === "sale" || p.listingType === "both"
   ).length;
   const rentListingCount = assignedProperties.filter((p) => isRentalListing(p)).length;
+  const preferredArea =
+    profileData?.data?.agentProfile?.preferredArea || user?.agentProfile?.preferredArea;
+  const preferredAreaSummary =
+    preferredArea?.label?.trim() ||
+    [preferredArea?.city, preferredArea?.state].filter(Boolean).join(", ");
 
   const crmBuyers = [...(saleBuyersData?.data || []), ...(rentBuyersData?.data || [])]
     .slice(0, 6)
@@ -133,8 +131,10 @@ const AgentDashboard = () => {
       type: other?.role ? other.role.charAt(0).toUpperCase() + other.role.slice(1) : "Client",
       status: "Active",
       lastContact: conv.lastMessageAt ? new Date(conv.lastMessageAt).toLocaleDateString() : "-",
+      buyerId: other?._id || other?.id,
     };
   });
+  const pipelineClients = crmBuyers.length ? crmBuyers : clientsLive;
 
   const progressStats = useMemo(
     () => getProgressStats(assignedProperties),
@@ -361,6 +361,32 @@ const AgentDashboard = () => {
               </Link>
             </div>
 
+            <div className="bg-card border border-border rounded-xl p-6 mb-6">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                  <h2 className="font-heading font-bold text-foreground flex items-center gap-2">
+                    <MapPin className="w-5 h-5 text-primary" />
+                    Preferred area
+                  </h2>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Optional map area used to rank you higher when sellers pick an agent for nearby listings.
+                  </p>
+                  {preferredAreaSummary ? (
+                    <p className="text-sm text-foreground mt-3">{preferredAreaSummary}</p>
+                  ) : (
+                    <p className="text-sm text-muted-foreground mt-3">
+                      No preferred area yet. Add one anytime from Settings.
+                    </p>
+                  )}
+                </div>
+                <Link to="/agent/settings">
+                  <Button size="sm" variant={preferredAreaSummary ? "outline" : "default"}>
+                    {preferredAreaSummary ? "Update area" : "Add preferred area"}
+                  </Button>
+                </Link>
+              </div>
+            </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               <div className="bg-card border border-border rounded-xl p-6">
                 <div className="flex items-center justify-between mb-4">
@@ -368,7 +394,12 @@ const AgentDashboard = () => {
                   <span className="text-xs text-muted-foreground">{new Date().toLocaleDateString()}</span>
                 </div>
                 <div className="space-y-3">
-                  {(upcomingEventsLive.length ? upcomingEventsLive : upcomingEvents).map((event, i) => (
+                  {upcomingEventsLive.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-6 text-center">
+                      No tours on your schedule yet.
+                    </p>
+                  ) : (
+                    upcomingEventsLive.map((event, i) => (
                     <div key={i} className="flex items-start gap-3 p-3 bg-muted rounded-lg">
                       <div className="w-2 h-2 rounded-full bg-primary mt-1.5 flex-shrink-0" />
                       <div className="flex-1">
@@ -377,7 +408,8 @@ const AgentDashboard = () => {
                       </div>
                       <span className="text-xs bg-primary/10 text-primary px-2 py-0.5 rounded">{event.type}</span>
                     </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </div>
 
@@ -396,8 +428,13 @@ const AgentDashboard = () => {
                   className="mb-4"
                 />
                 <div className="space-y-3">
-                  {(crmBuyers.length ? crmBuyers : clientsLive.length ? clientsLive : clients).map((client) => (
-                    <div key={client.name} className="flex items-center justify-between p-3 bg-muted rounded-lg">
+                  {pipelineClients.length === 0 ? (
+                    <p className="text-sm text-muted-foreground py-6 text-center">
+                      No clients yet. Assigned buyers and conversations will show here.
+                    </p>
+                  ) : (
+                    pipelineClients.map((client) => (
+                    <div key={client.buyerId || client.name} className="flex items-center justify-between p-3 bg-muted rounded-lg">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
                           <span className="text-primary font-bold text-xs">{client.name[0]}</span>
@@ -415,7 +452,8 @@ const AgentDashboard = () => {
                         {client.status}
                       </span>
                     </div>
-                  ))}
+                    ))
+                  )}
                 </div>
               </div>
             </div>

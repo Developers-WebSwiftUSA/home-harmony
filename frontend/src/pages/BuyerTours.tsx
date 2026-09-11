@@ -9,6 +9,8 @@ import TourNotification from "@/components/tours/TourNotification";
 import { isTourUpcoming } from "@/lib/tourDate";
 import { DashboardTabPills } from "@/components/dashboard/DashboardTabPills";
 import type { Tour } from "@/types/models";
+import { useAuth } from "@/context/AuthContext";
+import { getUserId } from "@/lib/userDisplay";
 
 const RESCHEDULE_STATUSES = new Set([
   "reschedule_requested",
@@ -23,12 +25,15 @@ const tourMatchesPill = (tour: Tour, key: string) => {
 
 const BuyerTours = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const userId = getUserId(user);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("all");
 
   const { data, isLoading } = useQuery({
-    queryKey: ["buyer-tours"],
+    queryKey: ["buyer-tours", userId],
     queryFn: () => tourService.list(),
+    enabled: Boolean(userId),
   });
 
   const allTours = data?.data || [];

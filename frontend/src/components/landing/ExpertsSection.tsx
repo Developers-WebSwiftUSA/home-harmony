@@ -7,10 +7,17 @@ import { RatingStars } from "@/components/RatingStars";
 import { getDisplayName } from "@/lib/userDisplay";
 import { getAgentRating } from "@/lib/ratings";
 
+const landingAgentQueryOptions = {
+  staleTime: 0,
+  refetchOnMount: "always" as const,
+  refetchOnWindowFocus: true,
+};
+
 const ExpertsSection = () => {
   const { data, isLoading } = useQuery({
-    queryKey: ["landing-agents"],
+    queryKey: ["public-agents"],
     queryFn: () => userService.listPublicAgents(),
+    ...landingAgentQueryOptions,
   });
 
   const agents = (data?.data || []).slice(0, 3);
@@ -36,7 +43,11 @@ const ExpertsSection = () => {
         ) : agents.length === 0 ? (
           <p className="text-center text-sm text-muted-foreground">No active agents yet.</p>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-4xl mx-auto">
+          <div
+            className={`grid grid-cols-1 gap-8 max-w-4xl mx-auto ${
+              agents.length === 1 ? "md:grid-cols-1 md:max-w-sm" : agents.length === 2 ? "md:grid-cols-2" : "md:grid-cols-3"
+            }`}
+          >
             {agents.map((agent) => {
               const agentId = agent._id || agent.id;
               return (

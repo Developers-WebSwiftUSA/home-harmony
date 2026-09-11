@@ -1,4 +1,4 @@
-import { BookOpen, HelpCircle } from "lucide-react";
+import { BookOpen } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -23,7 +23,7 @@ export const PageHelpDialog = ({ open, onOpenChange, manual }: Props) => (
           <BookOpen className="w-5 h-5 text-primary shrink-0" />
           {manual.title}
         </DialogTitle>
-        <DialogDescription>Step-by-step guide for this page</DialogDescription>
+        <DialogDescription>User guide for this page</DialogDescription>
       </DialogHeader>
       <HelpManualContent manual={manual} />
     </DialogContent>
@@ -40,13 +40,14 @@ export const PageHelpButton = ({
   <button
     type="button"
     onClick={onClick}
-    aria-label="Open page help guide"
-    title="How to use this page"
+    aria-label="Open user guide"
+    title="User Guide"
     className={
       className ??
-      "fixed bottom-6 right-6 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-lg hover:bg-primary/90 hover:scale-105 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+      "fixed bottom-6 right-6 z-40 flex h-12 items-center gap-2 rounded-full bg-primary px-4 text-primary-foreground shadow-lg hover:bg-primary/90 hover:scale-105 transition-all focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
     }
   >
-    <HelpCircle className="w-6 h-6" />
+    <BookOpen className="w-5 h-5 shrink-0" />
+    <span className="text-sm font-medium">User Guide</span>
   </button>
 );

@@ -4,19 +4,28 @@ import { DashboardSidebar } from "./AdminDashboard";
 import { userService } from "@/services/user.service";
 import { authService } from "@/services/auth.service";
 import { useAuth } from "@/context/AuthContext";
+import { getUserId } from "@/lib/userDisplay";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
-import { User, Mail, Phone, Save, Lock, Eye, EyeOff } from "lucide-react";
+import { User, Mail, Phone, Save, Lock, Eye, EyeOff, MapPin } from "lucide-react";
 import { DistanceUnitSettings } from "@/components/settings/DistanceUnitSettings";
+import { AgentPreferredAreaPicker } from "@/components/AgentPreferredAreaPicker";
+import {
+  draftToPreferredArea,
+  EMPTY_PREFERRED_AREA,
+  preferredAreaToDraft,
+  PreferredAreaDraft,
+} from "@/lib/preferredArea";
 
 const AgentSettings = () => {
   const { user: authUser, updateUser } = useAuth();
   const queryClient = useQueryClient();
+  const profileUserId = getUserId(authUser);
 
   const { data } = useQuery({
-    queryKey: ["user-profile"],
+    queryKey: ["user-profile", profileUserId],
     queryFn: () => authService.me(),
-    enabled: !!authUser,
+    enabled: Boolean(profileUserId),
   });
 
   const user = data?.data || authUser;
@@ -39,6 +48,10 @@ const AgentSettings = () => {
     new: false,
     confirm: false,
   });
+  const [preferredArea, setPreferredArea] = useState<PreferredAreaDraft>(EMPTY_PREFERRED_AREA);
+
+  const savedPreferredArea = user?.agentProfile?.preferredArea;
+  const savedAreaKey = JSON.stringify(savedPreferredArea ?? null);
 
   useEffect(() => {
     if (user) {
@@ -48,8 +61,9 @@ const AgentSettings = () => {
         email: user.email || "",
         phone: user.phone || "",
       });
+      setPreferredArea(preferredAreaToDraft(user.agentProfile?.preferredArea));
     }
-  }, [user]);
+  }, [user?.firstName, user?.lastName, user?.email, user?.phone, savedAreaKey]);
 
   const profileMutation = useMutation({
     mutationFn: (payload: any) => userService.update("me", payload),
@@ -67,6 +81,18 @@ const AgentSettings = () => {
       toast.success("Password updated successfully");
       updateUser(data.data.user, data.data.token);
       setPasswordForm({ currentPassword: "", newPassword: "", confirmPassword: "" });
+    },
+  });
+
+  const areaMutation = useMutation({
+    mutationFn: (payload: PreferredAreaDraft) =>
+      userService.update("me", { agentProfile: { preferredArea: draftToPreferredArea(payload) } }),
+    onSuccess: (data) => {
+      toast.success("Preferred area updated");
+      updateUser(data.data);
+      queryClient.invalidateQueries({ queryKey: ["user-profile"] });
+      queryClient.invalidateQueries({ queryKey: ["active-agents"] });
+      queryClient.invalidateQueries({ queryKey: ["public-agents"] });
     },
   });
 
@@ -156,6 +182,42 @@ const AgentSettings = () => {
               </Button>
             </div>
           </form>
+
+          <div className="bg-card border border-border rounded-xl p-6">
+            <div className="flex items-center gap-3 mb-2">
+              <MapPin className="w-5 h-5 text-primary" />
+              <h2 className="font-heading font-bold text-foreground">Preferred area</h2>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              Optional. Search the map and set a radius so you rank higher when sellers assign an
+              agent to listings in this area. You can add, change, or remove this anytime.
+            </p>
+            <AgentPreferredAreaPicker value={preferredArea} onChange={setPreferredArea} compact title="" description="" />
+            <div className="flex flex-wrap gap-2 mt-4">
+              <Button
+                type="button"
+                className="gap-2"
+                disabled={areaMutation.isPending}
+                onClick={() => areaMutation.mutate(preferredArea)}
+              >
+                <Save className="w-4 h-4" />
+                {areaMutation.isPending ? "Saving..." : "Save preferred area"}
+              </Button>
+              {preferredArea.latitude != null ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={areaMutation.isPending}
+                  onClick={() => {
+                    setPreferredArea(EMPTY_PREFERRED_AREA);
+                    areaMutation.mutate(EMPTY_PREFERRED_AREA);
+                  }}
+                >
+                  Remove area
+                </Button>
+              ) : null}
+            </div>
+          </div>
 
           <DistanceUnitSettings />
 

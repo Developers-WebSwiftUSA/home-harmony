@@ -1,28 +1,46 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams } from "react-router-dom";
 import { DashboardSidebar } from "./AdminDashboard";
 import { Button } from "@/components/ui/button";
 import { PropertyLocationPicker } from "@/components/PropertyLocationPicker";
+import { ListingImageFields, ListingImageDraft, draftsFromPropertyImages } from "@/components/ListingImageFields";
+import { GallerySlotPurchaseDialog } from "@/features/gallery-slots/components/GallerySlotPurchaseDialog";
+import { getLockedGalleryCount } from "@/features/gallery-slots/lib/gallerySlots";
+import { gallerySlotService } from "@/services/gallerySlot.service";
 import { buildListingLocation } from "@/lib/listingLocation";
-import { getPropertyPrimaryImage } from "@/lib/propertyImage";
 import { propertyService } from "@/services/property.service";
 import { uploadService } from "@/services/upload.service";
 import { toast } from "sonner";
+import { useAuth } from "@/context/AuthContext";
+import { getUserId } from "@/lib/userDisplay";
 
 const SellerAddListing = () => {
   const { id } = useParams<{ id: string }>();
   const isEditing = Boolean(id);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
+  const { user } = useAuth();
+  const userId = getUserId(user);
 
   const { data: existingData, isLoading: loadingExisting } = useQuery({
-    queryKey: ["seller-listing", id],
+    queryKey: ["seller-listing", userId, id],
     queryFn: () => propertyService.getById(id!, true),
-    enabled: isEditing,
+    enabled: isEditing && Boolean(userId),
   });
 
   const existing = existingData?.data;
+
+  const { data: pricingData } = useQuery({
+    queryKey: ["gallery-slot-pricing"],
+    queryFn: () => gallerySlotService.pricing(),
+  });
+
+  const { data: purchasesData } = useQuery({
+    queryKey: ["gallery-slot-purchases", userId, id],
+    queryFn: () => gallerySlotService.list({ propertyId: id, limit: 20 }),
+    enabled: isEditing && Boolean(id) && Boolean(userId),
+  });
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -46,9 +64,18 @@ const SellerAddListing = () => {
     deposit: "",
     availabilityDate: "",
   });
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [previewUrl, setPreviewUrl] = useState<string>("");
-  const [existingImageUrl, setExistingImageUrl] = useState<string>("");
+  const [images, setImages] = useState<ListingImageDraft[]>([]);
+  const [payOpen, setPayOpen] = useState(false);
+  const imagesRef = useRef(images);
+  imagesRef.current = images;
+
+  useEffect(() => {
+    return () => {
+      imagesRef.current.forEach((item) => {
+        if (item.previewUrl.startsWith("blob:")) URL.revokeObjectURL(item.previewUrl);
+      });
+    };
+  }, []);
 
   useEffect(() => {
     if (!existing) return;
@@ -78,23 +105,26 @@ const SellerAddListing = () => {
         ? new Date(existing.availabilityDate).toISOString().slice(0, 10)
         : "",
     });
-    setExistingImageUrl(getPropertyPrimaryImage(existing.images));
+    setImages(draftsFromPropertyImages(existing.images));
   }, [existing]);
 
-  useEffect(() => {
-    if (imageFile) {
-      const objectUrl = URL.createObjectURL(imageFile);
-      setPreviewUrl(objectUrl);
-      return () => URL.revokeObjectURL(objectUrl);
-    }
-    setPreviewUrl("");
-  }, [imageFile]);
-
   const buildPayload = async () => {
-    let uploadedImageUrl = existingImageUrl;
-    if (imageFile) {
-      const uploadResult = await uploadService.uploadImage(imageFile);
-      uploadedImageUrl = uploadResult.data.url;
+    const uploadedImages = (
+      await Promise.all(
+        images.map(async (item) => {
+          if (item.file) {
+            const uploadResult = await uploadService.uploadImage(item.file);
+            return { url: uploadResult.data.url, isPrimary: item.isPrimary };
+          }
+          const url = item.remoteUrl?.trim() || "";
+          if (!url || url.startsWith("blob:")) return null;
+          return { url, isPrimary: item.isPrimary };
+        })
+      )
+    ).filter((item): item is { url: string; isPrimary: boolean } => Boolean(item?.url));
+
+    if (uploadedImages.length && !uploadedImages.some((item) => item.isPrimary)) {
+      uploadedImages[0].isPrimary = true;
     }
 
     const petDetails = {
@@ -123,7 +153,7 @@ const SellerAddListing = () => {
             }
           : petDetails,
       location: buildListingLocation(form),
-      images: uploadedImageUrl ? [{ url: uploadedImageUrl, isPrimary: true }] : [],
+      images: uploadedImages,
       amenities: form.amenities
         .split(",")
         .map((item) => item.trim())
@@ -136,7 +166,7 @@ const SellerAddListing = () => {
     queryClient.invalidateQueries({ queryKey: ["seller-dashboard-listings"] });
     queryClient.invalidateQueries({ queryKey: ["properties"] });
     queryClient.invalidateQueries({ queryKey: ["rentals"] });
-    if (id) queryClient.invalidateQueries({ queryKey: ["seller-listing", id] });
+    if (id) queryClient.invalidateQueries({ queryKey: ["seller-listing"] });
   };
 
   const saveMutation = useMutation({
@@ -148,17 +178,44 @@ const SellerAddListing = () => {
       }
       return propertyService.create({ ...payload, status: "pending" });
     },
-    onSuccess: () => {
+    onSuccess: (response) => {
       invalidateListingQueries();
+      queryClient.invalidateQueries({ queryKey: ["gallery-slot-purchases"] });
+      const primary = images.find((item) => item.isPrimary) || images[0];
+      const galleryCount = images.filter((item) => item.id !== primary?.id).length;
+      const lockedCount = getLockedGalleryCount(galleryCount, existing?.paidGallerySlots || 0);
+      const createdId = response?.data?._id;
+
+      if (!isEditing && createdId && lockedCount > 0) {
+        toast.success("Listing submitted. Unlock extra gallery photos with Pay to Go.");
+        navigate(`/seller/listings/${createdId}/edit`);
+        return;
+      }
+
       toast.success(
         isEditing
           ? existing?.status === "rejected"
             ? "Listing resubmitted for admin approval"
-            : "Listing updated successfully"
+            : lockedCount > 0
+              ? "Listing updated. Extra gallery photos stay private until Pay to Go is approved."
+              : "Listing updated successfully"
           : "Listing submitted for admin approval"
       );
       navigate("/seller/listings");
     },
+  });
+
+  const cancelPurchaseMutation = useMutation({
+    mutationFn: async () => {
+      const pending = (purchasesData?.data || []).find((item) => item.status === "pending");
+      if (!pending) throw new Error("No pending Pay to Go request");
+      return gallerySlotService.cancel(pending._id);
+    },
+    onSuccess: () => {
+      toast.success("Pay to Go request cancelled");
+      queryClient.invalidateQueries({ queryKey: ["gallery-slot-purchases"] });
+    },
+    onError: (error: Error) => toast.error(error.message || "Could not cancel request"),
   });
 
   const onSubmit = (e: React.FormEvent) => {
@@ -167,7 +224,11 @@ const SellerAddListing = () => {
   };
 
   const addressQuery = [form.address, form.city, form.state, form.zipCode].filter(Boolean).join(", ");
-  const displayImage = previewUrl || existingImageUrl;
+  const paidGallerySlots = existing?.paidGallerySlots || 0;
+  const primaryImage = images.find((item) => item.isPrimary) || images[0];
+  const galleryCount = images.filter((item) => item.id !== primaryImage?.id).length;
+  const lockedCount = getLockedGalleryCount(galleryCount, paidGallerySlots);
+  const pendingPurchase = (purchasesData?.data || []).some((item) => item.status === "pending");
 
   if (isEditing && loadingExisting) {
     return (
@@ -433,38 +494,39 @@ const SellerAddListing = () => {
             }
           />
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <label className="text-xs text-muted-foreground block mb-1">Property Image (from your PC)</label>
-              <input
-                type="file"
-                accept="image/*"
-                onChange={(e) => setImageFile(e.target.files?.[0] || null)}
-                className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background"
-              />
-              <p className="text-[11px] text-muted-foreground mt-1">Max 5MB. JPG/PNG/WebP recommended.</p>
-            </div>
-            <div>
-              <label className="text-xs text-muted-foreground block mb-1">Amenities (comma separated)</label>
-              <input
-                value={form.amenities}
-                onChange={(e) => setForm((p) => ({ ...p, amenities: e.target.value }))}
-                className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background"
-                placeholder="Parking, Gym, Elevator"
-              />
-            </div>
-          </div>
-
-          {displayImage ? (
-            <div>
-              <label className="text-xs text-muted-foreground block mb-2">Image Preview</label>
-              <img
-                src={displayImage}
-                alt="Property preview"
-                className="w-full max-w-sm h-52 object-cover rounded-lg border border-border"
-              />
+          <ListingImageFields
+            images={images}
+            onChange={setImages}
+            disabled={saveMutation.isPending}
+            paidGallerySlots={paidGallerySlots}
+            pricePerSlot={pricingData?.data?.pricePerSlot}
+            canPay={isEditing && Boolean(id)}
+            pendingPurchase={pendingPurchase}
+            onPayToGo={() => setPayOpen(true)}
+          />
+          {pendingPurchase ? (
+            <div className="-mt-2">
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={cancelPurchaseMutation.isPending}
+                onClick={() => cancelPurchaseMutation.mutate()}
+              >
+                {cancelPurchaseMutation.isPending ? "Cancelling..." : "Cancel pending Pay to Go request"}
+              </Button>
             </div>
           ) : null}
+
+          <div>
+            <label className="text-xs text-muted-foreground block mb-1">Amenities (comma separated)</label>
+            <input
+              value={form.amenities}
+              onChange={(e) => setForm((p) => ({ ...p, amenities: e.target.value }))}
+              className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background"
+              placeholder="Parking, Gym, Elevator"
+            />
+          </div>
 
           <div className="flex items-center gap-2">
             <Button type="submit" disabled={saveMutation.isPending}>
@@ -484,6 +546,13 @@ const SellerAddListing = () => {
           </div>
         </form>
       </main>
+      <GallerySlotPurchaseDialog
+        open={payOpen}
+        onOpenChange={setPayOpen}
+        propertyId={id}
+        propertyTitle={form.title || existing?.title}
+        lockedCount={lockedCount}
+      />
     </div>
   );
 };

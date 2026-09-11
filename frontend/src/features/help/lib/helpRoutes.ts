@@ -29,6 +29,8 @@ const ROUTE_RULES: RouteRule[] = [
   { test: (p) => p === "/admin/properties", manualId: "admin-properties" },
   { test: (p) => /^\/admin\/properties\/[^/]+$/.test(p), manualId: "admin-property-review" },
   { test: (p) => p === "/admin/ad-campaigns", manualId: "admin-ad-campaigns" },
+  { test: (p) => p === "/admin/gallery-photos", manualId: "admin-gallery-photos" },
+  { test: (p) => p === "/admin/pricing", manualId: "admin-pricing" },
   { test: (p) => p === "/admin/news", manualId: "admin-news" },
   { test: (p) => p === "/admin/tours", manualId: "admin-tours" },
   { test: (p) => p === "/admin/reviews", manualId: "admin-reviews" },

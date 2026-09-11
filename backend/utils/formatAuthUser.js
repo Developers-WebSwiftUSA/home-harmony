@@ -1,3 +1,5 @@
+import { stripEmptyPreferredArea } from './preferredArea.js';
+
 /**
  * Default avatar from registration name (or email) until user uploads a custom one.
  */
@@ -23,7 +25,8 @@ export const formatAuthUser = (user) => {
     phone: doc.phone,
     avatar: doc.avatar || buildDefaultAvatar(doc),
     status: doc.status,
-    agentProfile: doc.agentProfile,
+    agentProfile: stripEmptyPreferredArea(doc.agentProfile),
+    location: doc.location,
     preferences: doc.preferences,
   };
 };

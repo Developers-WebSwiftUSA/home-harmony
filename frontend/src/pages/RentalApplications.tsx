@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { DashboardSidebar } from "./AdminDashboard";
 import { rentalApplicationService } from "@/services/rentalApplication.service";
 import { useAuth } from "@/context/AuthContext";
+import { getUserId } from "@/lib/userDisplay";
 import { Button } from "@/components/ui/button";
 import { RentalApplication, RentalApplicationStatus, UserRole } from "@/types/models";
 import { getPropertyDetailPath } from "@/lib/propertyRoutes";
@@ -50,14 +51,15 @@ const configs: Record<string, PageConfig> = {
 
 const RentalApplications = ({ mode }: { mode: "buyer" | "seller" | "agent" }) => {
   const { user } = useAuth();
+  const userId = getUserId(user);
   const config = configs[mode];
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState("all");
 
   const { data, isLoading } = useQuery({
-    queryKey: ["rental-applications", mode],
+    queryKey: ["rental-applications", mode, userId],
     queryFn: () => rentalApplicationService.list({ limit: 50 }),
-    enabled: Boolean(user),
+    enabled: Boolean(userId),
   });
 
   const updateMutation = useMutation({

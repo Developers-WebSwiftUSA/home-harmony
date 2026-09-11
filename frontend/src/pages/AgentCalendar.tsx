@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { getTourDateString, isTourPast, isTourUpcoming } from "@/lib/tourDate";
 import { Tour } from "@/types/models";
+import { useAuth } from "@/context/AuthContext";
 
 const statusStyles: Record<string, string> = {
   pending: "bg-yellow-500/10 text-yellow-600 border-yellow-500/20",
@@ -21,9 +22,12 @@ const statusStyles: Record<string, string> = {
 
 const AgentCalendar = () => {
   const navigate = useNavigate();
+  const { user, isAuthenticated } = useAuth();
+  const agentUserId = user?._id || user?.id;
   const { data, isLoading } = useQuery({
-    queryKey: ["agent-calendar-tours"],
+    queryKey: ["agent-calendar-tours", agentUserId],
     queryFn: () => tourService.list({ limit: 100 }),
+    enabled: isAuthenticated && Boolean(agentUserId),
   });
 
   const tours = data?.data || [];

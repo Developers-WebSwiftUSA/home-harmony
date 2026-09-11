@@ -8,7 +8,7 @@ import { favoriteService } from "@/services/favorite.service";
 import { tourService } from "@/services/tour.service";
 import { useAuth } from "@/context/AuthContext";
 import { UserAvatar } from "@/components/UserAvatar";
-import { getDisplayName } from "@/lib/userDisplay";
+import { getDisplayName, getUserId } from "@/lib/userDisplay";
 import { getPropertyDetailPath } from "@/lib/propertyRoutes";
 import { isRentalListing } from "@/features/rentals/lib/rentalFormat";
 import { getSavedRentalSearches } from "@/features/rentals/lib/savedSearches";
@@ -17,13 +17,16 @@ import { getPropertyPrimaryImage } from "@/lib/propertyImage";
 
 const BuyerDashboard = () => {
   const { user } = useAuth();
+  const userId = getUserId(user);
   const { data: favoritesData } = useQuery({
-    queryKey: ["buyer-favorites"],
+    queryKey: ["buyer-favorites", userId],
     queryFn: () => favoriteService.list(),
+    enabled: Boolean(userId),
   });
   const { data: toursData } = useQuery({
-    queryKey: ["buyer-tours"],
+    queryKey: ["buyer-tours", userId],
     queryFn: () => tourService.list(),
+    enabled: Boolean(userId),
   });
 
   const favorites = (favoritesData?.data || []).map((fav) => ({

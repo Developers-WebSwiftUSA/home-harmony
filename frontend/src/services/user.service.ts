@@ -12,8 +12,10 @@ export const userService = {
     return apiRequest<ApiResponse<User[]>>(`/users${suffix}`, { auth: true });
   },
 
-  listActiveAgents: () =>
-    apiRequest<ApiResponse<User[]>>("/users/agents/active", { auth: true }),
+  listActiveAgents: (propertyId?: string) => {
+    const suffix = propertyId ? `?propertyId=${encodeURIComponent(propertyId)}` : "";
+    return apiRequest<ApiResponse<User[]>>(`/users/agents/active${suffix}`, { auth: true });
+  },
 
   listPublicAgents: () => apiRequest<ApiResponse<User[]>>("/users/agents/public"),
 

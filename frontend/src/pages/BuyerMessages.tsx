@@ -11,11 +11,14 @@ import { Message, User } from "@/types/models";
 import { toast } from "sonner";
 import { AgentProfileDialog } from "@/components/AgentProfileDialog";
 import { useUserIdConversationDeepLink, findSelectedConversation } from "@/hooks/useUserIdConversationDeepLink";
+import { getUserId } from "@/lib/userDisplay";
 
 const BuyerMessages = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const userId = getUserId(user);
+  const conversationsQueryKey = ["buyer-conversations", userId];
   const { socket } = useSocket();
   const [searchParams] = useSearchParams();
   const propertyIdParam = searchParams.get("propertyId");
@@ -34,7 +37,7 @@ const BuyerMessages = () => {
   }, [searchParams]);
 
   const openedConversation = useUserIdConversationDeepLink({
-    conversationsQueryKey: ["buyer-conversations"],
+    conversationsQueryKey,
     messagesPath: "/buyer/messages",
     selectedConversation,
     setSelectedConversation,
@@ -46,8 +49,9 @@ const BuyerMessages = () => {
   };
 
   const { data: conversationsData } = useQuery({
-    queryKey: ["buyer-conversations"],
+    queryKey: conversationsQueryKey,
     queryFn: () => messageService.conversations(),
+    enabled: Boolean(userId),
   });
 
   const conversations = conversationsData?.data || [];
@@ -57,7 +61,7 @@ const BuyerMessages = () => {
     onSuccess: (response) => {
       const conversationId = response.data._id;
       setSelectedConversation(conversationId);
-      queryClient.setQueryData(["buyer-conversations"], (prev: { data?: typeof conversations } | undefined) => {
+      queryClient.setQueryData(conversationsQueryKey, (prev: { data?: typeof conversations } | undefined) => {
         const list = prev?.data || [];
         if (list.some((item) => String(item._id) === String(conversationId))) return prev;
         return { ...(prev || {}), data: [response.data, ...list] };
@@ -86,9 +90,9 @@ const BuyerMessages = () => {
     findSelectedConversation(conversations, selectedConversation, propertyConversationMutation.data?.data);
 
   const { data: messagesData, isLoading: messagesLoading } = useQuery({
-    queryKey: ["conversation-messages", selectedConversation],
+    queryKey: ["conversation-messages", userId, selectedConversation],
     queryFn: () => messageService.getMessages(selectedConversation || ""),
-    enabled: Boolean(selectedConversation),
+    enabled: Boolean(userId && selectedConv),
     // Removed refetchInterval - using Socket.IO for real-time updates
   });
 
@@ -105,7 +109,7 @@ const BuyerMessages = () => {
       
       if (String(messageConvId) === String(currentConvId)) {
         // Invalidate and refetch messages for this conversation
-        queryClient.invalidateQueries({ queryKey: ["conversation-messages", selectedConversation] });
+        queryClient.invalidateQueries({ queryKey: ["conversation-messages"] });
         queryClient.invalidateQueries({ queryKey: ["buyer-conversations"] });
       } else {
         // Just update conversations list
@@ -149,7 +153,7 @@ const BuyerMessages = () => {
     mutationFn: (payload: { conversationId: string; content: string }) => messageService.send(payload),
     onSuccess: () => {
       setMessageText("");
-      queryClient.invalidateQueries({ queryKey: ["conversation-messages", selectedConversation] });
+      queryClient.invalidateQueries({ queryKey: ["conversation-messages"] });
       queryClient.invalidateQueries({ queryKey: ["buyer-conversations"] });
     },
   });

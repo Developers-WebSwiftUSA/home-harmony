@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Megaphone,
@@ -533,7 +533,12 @@ const AdminAdCampaigns = () => {
             Ad Campaigns
           </h1>
           <p className="text-sm text-muted-foreground mt-1">
-            Review promotion requests, click a status to filter, and search Revenue by name, email, or bill number.
+            Review promotion requests, filter by status, and search Revenue. Change advertisement and
+            sponsored rates on the{" "}
+            <Link to="/admin/pricing" className="text-primary hover:underline">
+              Pricing
+            </Link>{" "}
+            page.
           </p>
         </div>
 

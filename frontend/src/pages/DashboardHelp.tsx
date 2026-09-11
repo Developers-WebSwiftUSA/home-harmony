@@ -1,4 +1,4 @@
-import { BookOpen, HelpCircle } from "lucide-react";
+import { BookOpen } from "lucide-react";
 import { DashboardSidebar } from "@/pages/AdminDashboard";
 import {
   Accordion,
@@ -24,7 +24,7 @@ export default function DashboardHelp({ role }: { role: Role }) {
 
   return (
     <div className="min-h-screen bg-muted flex">
-      <DashboardSidebar active="Help" role={role} />
+      <DashboardSidebar active="User Guide" role={role} />
       <main className="flex-1 ml-64 p-8">
         <div className="max-w-3xl">
           <div className="flex items-start gap-4 mb-8">
@@ -33,13 +33,13 @@ export default function DashboardHelp({ role }: { role: Role }) {
             </div>
             <div>
               <h1 className="font-heading text-2xl font-bold text-foreground">
-                {roleLabels[role]} Help Center
+                {roleLabels[role]} User Guide
               </h1>
               <p className="text-muted-foreground mt-1 text-sm leading-relaxed">
                 Guides for every feature in your dashboard — with step-by-step instructions and
-                visual previews. You can also click the{" "}
-                <HelpCircle className="w-4 h-4 inline text-primary align-text-bottom" /> button on
-                any page for context-specific help.
+                visual previews. You can also click{" "}
+                <span className="font-medium text-foreground">User Guide</span> on any page for
+                help focused on that screen.
               </p>
             </div>
           </div>

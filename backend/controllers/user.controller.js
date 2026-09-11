@@ -1,8 +1,12 @@
+import mongoose from 'mongoose';
 import asyncHandler from '../middleware/asyncHandler.js';
 import User from '../models/User.model.js';
 import Property from '../models/Property.model.js';
 import Tour from '../models/Tour.model.js';
 import { emitPendingActionsUpdatedForAdmins } from '../utils/emitPendingActions.js';
+import { rankAgentsForProperty } from '../utils/agentProximity.js';
+import { ensurePropertyCoordinates } from '../utils/propertyLocation.js';
+import { sanitizePreferredArea, stripEmptyPreferredArea } from '../utils/preferredArea.js';
 
 // @desc    Get all users
 // @route   GET /api/users
@@ -47,29 +51,34 @@ export const getPublicAgents = asyncHandler(async (req, res) => {
   const agents = await User.find({
     role: 'agent',
     status: 'active',
-    'agentProfile.verified': true,
   })
     .select('firstName lastName email phone avatar agentProfile location')
-    .sort({ 'agentProfile.rating.average': -1, firstName: 1 });
+    .sort({ 'agentProfile.rating.average': -1, firstName: 1, lastName: 1 })
+    .lean();
 
-  const data = await Promise.all(
-    agents.map(async (agent) => {
-      const assignedProperties = await Property.countDocuments({
-        agentId: agent._id,
-        status: { $in: ['active', 'pending', 'sold', 'rented'] }
-      });
+  const counts = agents.length
+    ? await Property.aggregate([
+        {
+          $match: {
+            agentId: { $in: agents.map((agent) => agent._id) },
+            status: { $in: ['active', 'pending', 'sold', 'rented'] },
+          },
+        },
+        { $group: { _id: '$agentId', count: { $sum: 1 } } },
+      ])
+    : [];
 
-      return {
-        ...agent.toObject(),
-        assignedProperties
-      };
-    })
-  );
+  const countByAgent = new Map(counts.map((entry) => [String(entry._id), entry.count]));
+  const data = agents.map((agent) => ({
+    ...agent,
+    agentProfile: stripEmptyPreferredArea(agent.agentProfile),
+    assignedProperties: countByAgent.get(String(agent._id)) || 0,
+  }));
 
   res.status(200).json({
     success: true,
     count: data.length,
-    data
+    data,
   });
 });
 
@@ -77,14 +86,52 @@ export const getPublicAgents = asyncHandler(async (req, res) => {
 // @route   GET /api/users/agents/active
 // @access  Private/Seller or Admin
 export const getActiveAgents = asyncHandler(async (req, res) => {
+  const { propertyId } = req.query;
   const agents = await User.find({ role: 'agent', status: 'active' })
-    .select('firstName lastName email phone avatar agentProfile')
-    .sort({ firstName: 1, lastName: 1 });
+    .select('firstName lastName email phone avatar agentProfile location')
+    .lean();
+  agents.forEach((agent) => {
+    agent.agentProfile = stripEmptyPreferredArea(agent.agentProfile);
+  });
+
+  let property = null;
+  if (propertyId && mongoose.isValidObjectId(propertyId)) {
+    const found = await Property.findById(propertyId).select('location sellerId');
+    const currentUserId = String(req.user._id || req.user.id);
+    const ownsProperty =
+      found &&
+      (req.user.role === 'admin' || found.sellerId?.toString() === currentUserId);
+    if (ownsProperty) {
+      const location = await ensurePropertyCoordinates(
+        found.location?.toObject ? found.location.toObject() : found.location
+      );
+      property = { location, sellerId: found.sellerId };
+    }
+  }
+
+  const listingsByAgent = new Map();
+  if (property && agents.length) {
+    const listings = await Property.find({
+      agentId: { $in: agents.map((agent) => agent._id) },
+      status: { $in: ['active', 'pending', 'sold', 'rented'] },
+    })
+      .select('agentId location')
+      .lean();
+
+    listings.forEach((listing) => {
+      const agentId = listing.agentId?.toString();
+      if (!agentId) return;
+      if (!listingsByAgent.has(agentId)) listingsByAgent.set(agentId, []);
+      listingsByAgent.get(agentId).push(listing);
+    });
+  }
+
+  const data = rankAgentsForProperty(agents, property, listingsByAgent);
 
   res.status(200).json({
     success: true,
-    count: agents.length,
-    data: agents
+    count: data.length,
+    data,
   });
 });
 
@@ -225,22 +272,60 @@ export const updateProfile = asyncHandler(async (req, res) => {
   if (req.user.role === 'seller' && req.body.sellerProfile) {
     fieldsToUpdate.sellerProfile = req.body.sellerProfile;
   }
+
+  const update = { $set: { ...fieldsToUpdate } };
+  Object.keys(update.$set).forEach((key) => {
+    if (update.$set[key] === undefined) delete update.$set[key];
+  });
+
   if (req.user.role === 'agent' && req.body.agentProfile) {
-    fieldsToUpdate.agentProfile = req.body.agentProfile;
+    if (Object.prototype.hasOwnProperty.call(req.body.agentProfile, 'preferredArea')) {
+      const area = sanitizePreferredArea(req.body.agentProfile.preferredArea);
+      if (area) {
+        update.$set['agentProfile.preferredArea'] = area;
+        if (area.city) update.$set['location.city'] = area.city;
+        if (area.state) update.$set['location.state'] = area.state;
+        if (area.coordinates) update.$set['location.coordinates'] = area.coordinates;
+      } else {
+        update.$unset = { 'agentProfile.preferredArea': 1 };
+      }
+    }
+    const restProfile = { ...req.body.agentProfile };
+    delete restProfile.preferredArea;
+    Object.entries(restProfile).forEach(([key, value]) => {
+      if (value !== undefined) update.$set[`agentProfile.${key}`] = value;
+    });
+  }
+
+  if (!Object.keys(update.$set).length) delete update.$set;
+  if (update.$unset && !Object.keys(update.$unset).length) delete update.$unset;
+
+  if (!update.$set && !update.$unset) {
+    const current = await User.findById(req.user.id).select('-password');
+    return res.status(200).json({ success: true, data: current });
+  }
+
+  if (update.$set?.location && (update.$set['location.city'] || update.$set['location.state'] || update.$set['location.coordinates'])) {
+    delete update.$set.location;
   }
 
   const user = await User.findByIdAndUpdate(
     req.user.id,
-    fieldsToUpdate,
+    update,
     {
       new: true,
       runValidators: true
     }
   ).select('-password');
 
+  const payload = user?.toObject ? user.toObject() : user;
+  if (payload?.agentProfile) {
+    payload.agentProfile = stripEmptyPreferredArea(payload.agentProfile);
+  }
+
   res.status(200).json({
     success: true,
-    data: user
+    data: payload
   });
 });
 

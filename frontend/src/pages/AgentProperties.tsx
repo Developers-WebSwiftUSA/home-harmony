@@ -9,15 +9,19 @@ import { getPropertyDetailPath } from "@/lib/propertyRoutes";
 import property1 from "@/assets/property-1.jpg";
 import { getPropertyPrimaryImage } from "@/lib/propertyImage";
 import { PropertyViewershipControl } from "@/components/PropertyViewershipControl";
+import { useAuth } from "@/context/AuthContext";
 
 const AgentProperties = () => {
+  const { user, isAuthenticated } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const listingTypeTab = searchParams.get("type") || "all";
   const [statusTab, setStatusTab] = useState("All");
+  const agentUserId = user?._id || user?.id;
 
   const { data, isLoading } = useQuery({
-    queryKey: ["agent-properties"],
+    queryKey: ["agent-properties", agentUserId],
     queryFn: () => propertyService.agent(),
+    enabled: isAuthenticated && Boolean(agentUserId),
   });
 
   const properties = data?.data || [];

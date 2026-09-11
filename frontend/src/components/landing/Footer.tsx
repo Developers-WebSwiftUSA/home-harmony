@@ -1,5 +1,6 @@
 import { MapPin, Mail, Phone } from "lucide-react";
 import { Link } from "react-router-dom";
+import { openUserGuide } from "@/features/help/lib/openUserGuide";
 
 const Footer = () => {
   return (
@@ -55,6 +56,15 @@ const Footer = () => {
               <h4 className="font-heading font-bold text-dark-surface-foreground mb-4">Helpful Links</h4>
               <ul className="space-y-2 text-sm text-dark-surface-foreground/60">
                 <li><Link to="/contact" className="hover:text-primary transition-colors">Terms & Conditions</Link></li>
+                <li>
+                  <button
+                    type="button"
+                    onClick={() => openUserGuide()}
+                    className="hover:text-primary transition-colors"
+                  >
+                    User Guide
+                  </button>
+                </li>
                 <li><Link to="/contact" className="hover:text-primary transition-colors">Help Center</Link></li>
               </ul>
             </div>

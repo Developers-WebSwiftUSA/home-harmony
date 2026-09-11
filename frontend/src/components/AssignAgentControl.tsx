@@ -4,7 +4,6 @@ import { AssignAgentSelect } from "./AssignAgentSelect";
 import { propertyService } from "@/services/property.service";
 import { Button } from "./ui/button";
 import { toast } from "sonner";
-import { getDisplayName } from "@/lib/userDisplay";
 import { User } from "@/types/models";
 
 type Props = {
@@ -42,16 +41,16 @@ export const AssignAgentControl = ({ propertyId, currentAgent, compact }: Props)
 
   const currentId = resolveAgentId(currentAgent);
   const hasChanges = agentId !== currentId;
-  const agentUser = typeof currentAgent === "object" && currentAgent ? currentAgent : null;
 
   return (
     <div className={compact ? "space-y-2" : "space-y-3"}>
-      {!compact && agentUser && (
-        <p className="text-xs text-muted-foreground">
-          Current: {getDisplayName(agentUser)} ({agentUser.email})
-        </p>
-      )}
-      <AssignAgentSelect value={agentId} onChange={setAgentId} disabled={mutation.isPending} />
+      <AssignAgentSelect
+        value={agentId}
+        onChange={setAgentId}
+        disabled={mutation.isPending}
+        currentAgent={currentAgent}
+        propertyId={propertyId}
+      />
       <Button
         size="sm"
         onClick={() => mutation.mutate(agentId || null)}

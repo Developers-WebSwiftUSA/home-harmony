@@ -200,7 +200,7 @@ const RentalDetail = () => {
             <ArrowLeft className="w-4 h-4" /> Back to Rentals
           </Link>
 
-          <div className="rounded-xl overflow-hidden h-[300px] md:h-[450px] mb-8 border border-border">
+          <div className="group rounded-xl overflow-hidden h-[300px] md:h-[450px] mb-8 border border-border">
             <RentalCardCarousel images={images} alt={apiProperty.title} className="h-full" />
           </div>
 

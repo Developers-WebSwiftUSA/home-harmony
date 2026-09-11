@@ -6,9 +6,11 @@ import { useAuth } from "@/context/AuthContext";
 
 const AgentClients = () => {
   const { user } = useAuth();
+  const agentUserId = user?._id || user?.id;
   const { data, isLoading } = useQuery({
-    queryKey: ["agent-clients-conversations"],
+    queryKey: ["agent-clients-conversations", agentUserId],
     queryFn: () => messageService.conversations(),
+    enabled: Boolean(agentUserId),
   });
 
   const clients = useMemo(() => {
@@ -35,6 +37,9 @@ const AgentClients = () => {
         <h1 className="text-2xl font-heading font-bold text-foreground mb-2">Clients</h1>
         <p className="text-sm text-muted-foreground mb-6">People you are currently engaging with</p>
         {isLoading ? <p className="text-sm text-muted-foreground mb-4">Loading clients...</p> : null}
+        {clients.length === 0 && !isLoading ? (
+          <p className="text-sm text-muted-foreground">No clients yet.</p>
+        ) : null}
         <div className="space-y-3">
           {clients.map((client) => (
             <div key={client.email} className="bg-card border border-border rounded-xl p-4">

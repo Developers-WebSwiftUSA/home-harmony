@@ -10,6 +10,7 @@ const emptyCounts: PendingActionCounts = {
   users: 0,
   passwordResets: 0,
   adCampaigns: 0,
+  galleryPurchases: 0,
   tours: 0,
   applications: 0,
   messages: 0,
@@ -18,14 +19,15 @@ const emptyCounts: PendingActionCounts = {
 export const PENDING_ACTIONS_QUERY_KEY = ["pending-actions"] as const;
 
 export const usePendingActionCounts = () => {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
   const { socket } = useSocket();
   const queryClient = useQueryClient();
+  const userId = user?._id || user?.id;
 
   const query = useQuery({
-    queryKey: PENDING_ACTIONS_QUERY_KEY,
+    queryKey: [...PENDING_ACTIONS_QUERY_KEY, userId],
     queryFn: pendingActionsService.get,
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && Boolean(userId),
     ...liveQueryOptions,
   });
 

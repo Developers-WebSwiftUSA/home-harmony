@@ -238,10 +238,11 @@ const mockups: Record<HelpVisualType, ReactNode> = {
     </Frame>
   ),
   "help-fab": (
-    <Frame label="Page help button">
+    <Frame label="User Guide button">
       <div className="relative h-16">
-        <div className="absolute bottom-0 right-0 w-10 h-10 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-lg">
-          <HelpCircle className="w-5 h-5" />
+        <div className="absolute bottom-0 right-0 h-9 px-3 rounded-full bg-primary text-primary-foreground flex items-center gap-1.5 shadow-lg text-[10px] font-medium">
+          <HelpCircle className="w-3.5 h-3.5" />
+          User Guide
         </div>
         <p className="text-[10px] text-muted-foreground absolute bottom-12 right-0 whitespace-nowrap">
           Click anytime for this page&apos;s guide

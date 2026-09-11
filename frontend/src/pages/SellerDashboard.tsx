@@ -7,48 +7,43 @@ import { propertyService } from "@/services/property.service";
 import { tourService } from "@/services/tour.service";
 import { useAuth } from "@/context/AuthContext";
 import { UserAvatar } from "@/components/UserAvatar";
-import { getDisplayName } from "@/lib/userDisplay";
+import { getDisplayName, getUserId } from "@/lib/userDisplay";
 import { analyticsService } from "@/services/analytics.service";
 import { crmService } from "@/services/crm.service";
 import { formatOverviewValue } from "@/lib/analyticsDisplay";
 import { DashboardTabPills, listingTypeTabs, marketTabs } from "@/components/dashboard/DashboardTabPills";
 import { isRentalListing } from "@/features/rentals/lib/rentalFormat";
 import property1 from "@/assets/property-1.jpg";
-import property2 from "@/assets/property-2.jpg";
 import { getPropertyPrimaryImage } from "@/lib/propertyImage";
-
-const listings = [
-  { id: 1, image: property1, title: "Downtown Smart Apartments", price: "$450,000", status: "Active", views: 234, inquiries: 12 },
-  { id: 2, image: property2, title: "Garden View Residence", price: "$275,000", status: "Pending Review", views: 89, inquiries: 5 },
-];
-
-const tourRequests = [
-  { buyer: "Alice Johnson", property: "Downtown Smart Apartments", date: "Feb 20, 2026", time: "10:00 AM", status: "Pending" },
-  { buyer: "Bob Williams", property: "Downtown Smart Apartments", date: "Feb 21, 2026", time: "3:00 PM", status: "Accepted" },
-];
 
 const SellerDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const userId = getUserId(user);
   const { data: listingsData } = useQuery({
-    queryKey: ["seller-dashboard-listings"],
+    queryKey: ["seller-dashboard-listings", userId],
     queryFn: () => propertyService.mine(),
+    enabled: Boolean(userId),
   });
   const { data: toursData } = useQuery({
-    queryKey: ["seller-dashboard-tours"],
+    queryKey: ["seller-dashboard-tours", userId],
     queryFn: () => tourService.list(),
+    enabled: Boolean(userId),
   });
   const { data: analyticsData } = useQuery({
-    queryKey: ["seller-dashboard-analytics"],
+    queryKey: ["seller-dashboard-analytics", userId],
     queryFn: () => analyticsService.seller(),
+    enabled: Boolean(userId),
   });
   const { data: saleBuyersData } = useQuery({
-    queryKey: ["crm-buyers", "seller", "sale"],
+    queryKey: ["crm-buyers", "seller", "sale", userId],
     queryFn: () => crmService.myBuyers("sale"),
+    enabled: Boolean(userId),
   });
   const { data: rentBuyersData } = useQuery({
-    queryKey: ["crm-buyers", "seller", "rent"],
+    queryKey: ["crm-buyers", "seller", "rent", userId],
     queryFn: () => crmService.myBuyers("rent"),
+    enabled: Boolean(userId),
   });
 
   const allProperties = listingsData?.data || [];
@@ -59,29 +54,27 @@ const SellerDashboard = () => {
   const saleBuyerCount = saleBuyersData?.data?.length || 0;
   const rentBuyerCount = rentBuyersData?.data?.length || 0;
 
-  const listingsLive =
-    allProperties.slice(0, 3).map((item) => ({
-      id: item._id,
-      image: getPropertyPrimaryImage(item.images, property1),
-      title: item.title,
-      price: `$${Number(item.price || 0).toLocaleString()}`,
-      status: item.status === "pending" ? "Pending Review" : item.status.charAt(0).toUpperCase() + item.status.slice(1),
-      views: item.views || 0,
-      inquiries: item.inquiries || 0,
-      listingType: item.listingType,
-    })) || listings;
+  const listingsLive = allProperties.slice(0, 3).map((item) => ({
+    id: item._id,
+    image: getPropertyPrimaryImage(item.images, property1),
+    title: item.title,
+    price: `$${Number(item.price || 0).toLocaleString()}`,
+    status: item.status === "pending" ? "Pending Review" : item.status.charAt(0).toUpperCase() + item.status.slice(1),
+    views: item.views || 0,
+    inquiries: item.inquiries || 0,
+    listingType: item.listingType,
+  }));
 
-  const tourRequestsLive =
-    (toursData?.data || []).slice(0, 4).map((tour) => ({
-      buyer: `${tour.buyerId?.firstName || ""} ${tour.buyerId?.lastName || ""}`.trim() || tour.buyerId?.email || "Buyer",
-      property: tour.propertyId?.title || "Property",
-      date: tour.date ? new Date(tour.date).toLocaleDateString() : "-",
-      time: `${tour.startTime} - ${tour.endTime}`,
-      status:
-        tour.status === "confirmed"
-          ? "Accepted"
-          : tour.status.charAt(0).toUpperCase() + tour.status.slice(1),
-    })) || tourRequests;
+  const tourRequestsLive = (toursData?.data || []).slice(0, 4).map((tour) => ({
+    buyer: `${tour.buyerId?.firstName || ""} ${tour.buyerId?.lastName || ""}`.trim() || tour.buyerId?.email || "Buyer",
+    property: tour.propertyId?.title || "Property",
+    date: tour.date ? new Date(tour.date).toLocaleDateString() : "-",
+    time: `${tour.startTime} - ${tour.endTime}`,
+    status:
+      tour.status === "confirmed"
+        ? "Accepted"
+        : tour.status.charAt(0).toUpperCase() + tour.status.slice(1),
+  }));
 
   const analytics = analyticsData?.data;
   const totalViews = analytics?.overview.find((o) => o.label === "Total Views")?.value
@@ -183,6 +176,9 @@ const SellerDashboard = () => {
             </Link>
           </div>
           <div className="space-y-3">
+            {listingsLive.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-6 text-center">No listings yet.</p>
+            ) : null}
             {listingsLive.map((listing) => (
               <div key={listing.id} className="flex items-center gap-4 p-4 bg-muted rounded-lg">
                 <img src={listing.image} alt={listing.title} className="w-20 h-14 rounded-md object-cover" />
@@ -203,6 +199,9 @@ const SellerDashboard = () => {
         <div className="bg-card border border-border rounded-xl p-6">
           <h2 className="font-heading font-bold text-foreground mb-4">Tour Requests</h2>
           <div className="space-y-3">
+            {tourRequestsLive.length === 0 ? (
+              <p className="text-sm text-muted-foreground py-6 text-center">No tour requests yet.</p>
+            ) : null}
             {tourRequestsLive.map((tour, i) => (
               <div key={i} className="flex items-center justify-between p-4 bg-muted rounded-lg">
                 <div>

@@ -88,7 +88,23 @@ const userSchema = new mongoose.Schema({
       default: false
     },
     bio: String,
-    languages: [String]
+    languages: [String],
+    preferredArea: {
+      type: new mongoose.Schema(
+        {
+          label: String,
+          city: String,
+          state: String,
+          radiusMiles: Number,
+          coordinates: {
+            type: { type: String, enum: ['Point'] },
+            coordinates: [Number],
+          },
+        },
+        { _id: false }
+      ),
+      default: undefined,
+    }
   },
   // Common fields
   location: {

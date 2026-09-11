@@ -3,16 +3,18 @@ import { useQuery } from "@tanstack/react-query";
 import { DashboardSidebar } from "./AdminDashboard";
 import { tourService } from "@/services/tour.service";
 import { useAuth } from "@/context/AuthContext";
+import { getUserId } from "@/lib/userDisplay";
 import { TourReviewsList } from "@/components/TourReviewsList";
 import { DashboardTabPills } from "@/components/dashboard/DashboardTabPills";
 
 const SellerReviews = () => {
-  const { isAuthenticated } = useAuth();
+  const { user, isAuthenticated } = useAuth();
+  const userId = getUserId(user);
   const [pill, setPill] = useState("all");
   const { data, isLoading } = useQuery({
-    queryKey: ["seller-reviews"],
+    queryKey: ["seller-reviews", userId],
     queryFn: () => tourService.listReviews({ limit: 500 }),
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && Boolean(userId),
   });
 
   const tours = data?.data || [];

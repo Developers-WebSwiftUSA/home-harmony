@@ -10,6 +10,7 @@ import property1 from "@/assets/property-1.jpg";
 import { AssignAgentControl } from "@/components/AssignAgentControl";
 import { PropertyImage } from "@/components/PropertyImage";
 import { getAllPropertyImageUrls } from "@/lib/propertyImage";
+import { getGallerySlotState } from "@/features/gallery-slots/lib/gallerySlots";
 import { getPropertyDetailPath } from "@/lib/propertyRoutes";
 
 const AdminPropertyReview = () => {
@@ -19,7 +20,7 @@ const AdminPropertyReview = () => {
 
   const { data, isLoading } = useQuery({
     queryKey: ["admin-property", id],
-    queryFn: () => propertyService.getById(id!, false), // Public endpoint, no auth needed
+    queryFn: () => propertyService.getById(id!, true),
     enabled: !!id,
   });
 
@@ -196,9 +197,13 @@ const AdminPropertyReview = () => {
           <div className="lg:col-span-2 space-y-6">
             {/* Property Images */}
             <div className="bg-card border border-border rounded-xl p-6">
-              <h2 className="font-heading font-bold text-foreground mb-4">
+              <h2 className="font-heading font-bold text-foreground mb-1">
                 Property Images {propertyImages.length > 0 ? `(${propertyImages.length})` : ""}
               </h2>
+              <p className="text-xs text-muted-foreground mb-4">
+                Main + first 3 gallery photos are free. Extra photos stay private until Pay to Go is approved.
+                Paid slots: {property.paidGallerySlots || 0}
+              </p>
               {propertyImages.length > 0 ? (
                 <div
                   className={
@@ -207,9 +212,17 @@ const AdminPropertyReview = () => {
                       : "grid grid-cols-1 sm:grid-cols-2 gap-4"
                   }
                 >
-                  {propertyImages.map((imageUrl, index) => (
-                    <PropertyImage
+                  {propertyImages.map((imageUrl, index) => {
+                    const slotState =
+                      index === 0 ? "main" : getGallerySlotState(index - 1, property.paidGallerySlots || 0);
+                    const label =
+                      slotState === "main" ? "Main" : slotState === "free" ? "Free" : slotState === "paid" ? "Paid" : "Locked";
+                    return (
+                    <div
                       key={`${imageUrl}-${index}`}
+                      className={`relative ${index === 0 && propertyImages.length > 1 ? "sm:row-span-2" : ""}`}
+                    >
+                    <PropertyImage
                       src={imageUrl}
                       alt={`${property.title} ${index + 1}`}
                       fallback={property1}
@@ -217,7 +230,12 @@ const AdminPropertyReview = () => {
                         index === 0 && propertyImages.length > 1 ? "sm:row-span-2 h-64 sm:h-full min-h-[16rem]" : "h-48 sm:h-56"
                       }`}
                     />
-                  ))}
+                    <span className="absolute top-3 left-3 text-[11px] font-semibold px-2 py-1 rounded-full bg-card/90 text-foreground">
+                      {label}
+                    </span>
+                    </div>
+                    );
+                  })}
                 </div>
               ) : (
                 <PropertyImage

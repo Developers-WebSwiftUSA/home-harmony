@@ -22,6 +22,8 @@ import analyticsRoutes from './routes/analytics.routes.js';
 import rentalApplicationRoutes from './routes/rentalApplication.routes.js';
 import crmRoutes from './routes/crm.routes.js';
 import adCampaignRoutes from './routes/adCampaign.routes.js';
+import gallerySlotRoutes from './routes/gallerySlot.routes.js';
+import platformSettingsRoutes from './routes/platformSettings.routes.js';
 import newsRoutes from './routes/news.routes.js';
 import pendingActionsRoutes from './routes/pendingActions.routes.js';
 
@@ -127,6 +129,8 @@ app.use('/api/analytics', analyticsRoutes);
 app.use('/api/rental-applications', rentalApplicationRoutes);
 app.use('/api/crm', crmRoutes);
 app.use('/api/ad-campaigns', adCampaignRoutes);
+app.use('/api/gallery-slots', gallerySlotRoutes);
+app.use('/api/platform-settings', platformSettingsRoutes);
 app.use('/api/news', newsRoutes);
 app.use('/api/pending-actions', pendingActionsRoutes);
 

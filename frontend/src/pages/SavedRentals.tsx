@@ -8,11 +8,16 @@ import { getPropertyPrimaryImage } from "@/lib/propertyImage";
 import { RentalFavoriteButton } from "@/features/rentals/components/RentalFavoriteButton";
 import { MapPin, Bed, Bath } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/context/AuthContext";
+import { getUserId } from "@/lib/userDisplay";
 
 const SavedRentals = () => {
+  const { user } = useAuth();
+  const userId = getUserId(user);
   const { data, isLoading } = useQuery({
-    queryKey: ["saved-rentals"],
+    queryKey: ["saved-rentals", userId],
     queryFn: () => favoriteService.list(),
+    enabled: Boolean(userId),
   });
 
   const rentals = (data?.data || []).filter((fav) =>

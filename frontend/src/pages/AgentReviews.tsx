@@ -16,7 +16,7 @@ const AgentReviews = () => {
   const { data, isLoading } = useQuery({
     queryKey: ["agent-reviews", agentUserId],
     queryFn: () => tourService.listReviews({ limit: 500 }),
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && Boolean(agentUserId),
   });
 
   const tours = data?.data || [];

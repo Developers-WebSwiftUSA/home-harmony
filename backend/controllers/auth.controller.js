@@ -6,12 +6,13 @@ import { sendEmail } from '../utils/sendEmail.js';
 import { SUPER_ADMIN_EMAIL } from '../config/seed.js';
 import { buildDefaultAvatar, formatAuthUser } from '../utils/formatAuthUser.js';
 import { emitPendingActionsUpdatedForAdmins } from '../utils/emitPendingActions.js';
+import { sanitizePreferredArea } from '../utils/preferredArea.js';
 
 // @desc    Register user
 // @route   POST /api/auth/register
 // @access  Public
 export const register = asyncHandler(async (req, res) => {
-  const { email, password, role, firstName, lastName, phone, avatar } = req.body;
+  const { email, password, role, firstName, lastName, phone, avatar, preferredArea } = req.body;
   const normalizedRole = (role || "buyer").toLowerCase();
   const normalizedEmail = (email || "").toLowerCase().trim();
 
@@ -47,6 +48,9 @@ export const register = asyncHandler(async (req, res) => {
       ? avatar.trim()
       : "";
 
+  const agentPreferredArea =
+    normalizedRole === "agent" ? sanitizePreferredArea(preferredArea || req.body.agentProfile?.preferredArea) : null;
+
   // Create user with optional profile picture, otherwise a generated avatar
   const user = await User.create({
     email: normalizedEmail,
@@ -56,7 +60,23 @@ export const register = asyncHandler(async (req, res) => {
     lastName,
     phone,
     avatar: safeAvatar || buildDefaultAvatar({ firstName, lastName, email: normalizedEmail }),
-    ...(normalizedRole === "agent" ? { agentProfile: { verified: false } } : {}),
+    ...(normalizedRole === "agent"
+      ? {
+          agentProfile: {
+            verified: false,
+            ...(agentPreferredArea ? { preferredArea: agentPreferredArea } : {}),
+          },
+          ...(agentPreferredArea
+            ? {
+                location: {
+                  city: agentPreferredArea.city,
+                  state: agentPreferredArea.state,
+                  coordinates: agentPreferredArea.coordinates,
+                },
+              }
+            : {}),
+        }
+      : {}),
   });
 
   if (normalizedRole === "agent") {

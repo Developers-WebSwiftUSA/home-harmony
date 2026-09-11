@@ -6,6 +6,17 @@ export interface UserPreferences {
   distanceUnit?: DistanceUnit;
 }
 
+export interface AgentPreferredArea {
+  label?: string;
+  city?: string;
+  state?: string;
+  radiusMiles?: number | null;
+  coordinates?: {
+    type?: "Point";
+    coordinates: [number, number];
+  };
+}
+
 export interface AgentProfile {
   licenseNumber?: string;
   specialization?: string[];
@@ -17,6 +28,7 @@ export interface AgentProfile {
   verified?: boolean;
   bio?: string;
   languages?: string[];
+  preferredArea?: AgentPreferredArea | null;
 }
 
 export interface User {
@@ -35,9 +47,18 @@ export interface User {
     state?: string;
     zipCode?: string;
     country?: string;
+    coordinates?: {
+      type?: "Point";
+      coordinates: [number, number];
+    };
   };
   agentProfile?: AgentProfile;
   assignedProperties?: number;
+  distanceMiles?: number | null;
+  sameState?: boolean;
+  sameCity?: boolean;
+  inPreferredArea?: boolean;
+  locationLabel?: string;
   preferences?: UserPreferences;
 }
 
@@ -98,6 +119,7 @@ export interface Property {
   bathrooms: number;
   squareFeet: number;
   images: Array<{ url: string; isPrimary?: boolean; caption?: string }>;
+  paidGallerySlots?: number;
   location: {
     address?: string;
     city?: string;

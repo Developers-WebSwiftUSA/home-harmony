@@ -85,7 +85,7 @@ const notifyUser = async (io, userId, payload) => {
 // @route   GET /api/ad-campaigns/pricing
 // @access  Private (seller, agent, admin)
 export const getAdPricing = asyncHandler(async (req, res) => {
-  res.status(200).json({ success: true, data: getPricingCatalog() });
+  res.status(200).json({ success: true, data: await getPricingCatalog() });
 });
 
 // @desc    List ad campaigns
@@ -234,8 +234,8 @@ export const createAdCampaign = asyncHandler(async (req, res) => {
     });
   }
 
-  const dailyRate = getDailyRate(adType);
-  const totalAmount = calculateTotalAmount(adType, durationDays);
+  const dailyRate = await getDailyRate(adType);
+  const totalAmount = await calculateTotalAmount(adType, durationDays);
 
   const campaign = await AdCampaign.create({
     propertyId,

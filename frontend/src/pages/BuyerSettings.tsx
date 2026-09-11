@@ -4,6 +4,7 @@ import { DashboardSidebar } from "./AdminDashboard";
 import { userService } from "@/services/user.service";
 import { authService } from "@/services/auth.service";
 import { useAuth } from "@/context/AuthContext";
+import { getUserId } from "@/lib/userDisplay";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 import { User, Mail, Phone, MapPin, Save, Lock, Eye, EyeOff } from "lucide-react";
@@ -12,11 +13,12 @@ import { DistanceUnitSettings } from "@/components/settings/DistanceUnitSettings
 const BuyerSettings = () => {
   const { user: authUser, updateUser } = useAuth();
   const queryClient = useQueryClient();
+  const profileUserId = getUserId(authUser);
 
   const { data } = useQuery({
-    queryKey: ["user-profile"],
+    queryKey: ["user-profile", profileUserId],
     queryFn: () => authService.me(),
-    enabled: !!authUser,
+    enabled: Boolean(profileUserId),
   });
 
   const user = data?.data || authUser;

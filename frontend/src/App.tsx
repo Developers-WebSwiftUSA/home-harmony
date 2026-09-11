@@ -69,6 +69,8 @@ import BuyerCrm from "./pages/BuyerCrm";
 import AdminPartners from "./pages/AdminPartners";
 import AdCampaigns from "./pages/AdCampaigns";
 import AdminAdCampaigns from "./pages/AdminAdCampaigns";
+import AdminGalleryPurchases from "./pages/AdminGalleryPurchases";
+import AdminPricing from "./pages/AdminPricing";
 import AdminNews from "./pages/AdminNews";
 import { WelcomeIntentDialog } from "./components/landing/WelcomeIntentDialog";
 import { GlobalPageHelp } from "./features/help/components/GlobalPageHelp";
@@ -133,6 +135,8 @@ const App = () => (
             <Route path="/admin/messages" element={<ProtectedRoute roles={["admin"]}><AdminMessages /></ProtectedRoute>} />
             <Route path="/admin/partners" element={<ProtectedRoute roles={["admin"]}><AdminPartners /></ProtectedRoute>} />
             <Route path="/admin/ad-campaigns" element={<ProtectedRoute roles={["admin"]}><AdminAdCampaigns /></ProtectedRoute>} />
+            <Route path="/admin/gallery-photos" element={<ProtectedRoute roles={["admin"]}><AdminGalleryPurchases /></ProtectedRoute>} />
+            <Route path="/admin/pricing" element={<ProtectedRoute roles={["admin"]}><AdminPricing /></ProtectedRoute>} />
             <Route path="/admin/news" element={<ProtectedRoute roles={["admin"]}><AdminNews /></ProtectedRoute>} />
             <Route path="/admin/settings" element={<ProtectedRoute roles={["admin"]}><AdminSettings /></ProtectedRoute>} />
             <Route path="/admin/help" element={<ProtectedRoute roles={["admin"]}><DashboardHelp role="admin" /></ProtectedRoute>} />

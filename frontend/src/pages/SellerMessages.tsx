@@ -9,10 +9,13 @@ import { useSearchParams } from "react-router-dom";
 import { useSocket } from "@/context/SocketContext";
 import { Message } from "@/types/models";
 import { useUserIdConversationDeepLink, findSelectedConversation } from "@/hooks/useUserIdConversationDeepLink";
+import { getUserId } from "@/lib/userDisplay";
 
 const SellerMessages = () => {
   const queryClient = useQueryClient();
   const { user } = useAuth();
+  const userId = getUserId(user);
+  const conversationsQueryKey = ["seller-conversations", userId];
   const { socket } = useSocket();
   const [searchParams] = useSearchParams();
   const [selectedConversation, setSelectedConversation] = useState<string | null>(
@@ -28,15 +31,16 @@ const SellerMessages = () => {
   }, [searchParams]);
 
   const openedConversation = useUserIdConversationDeepLink({
-    conversationsQueryKey: ["seller-conversations"],
+    conversationsQueryKey,
     messagesPath: "/seller/messages",
     selectedConversation,
     setSelectedConversation,
   });
 
   const { data: conversationsData, isLoading: conversationsLoading, error: conversationsError } = useQuery({
-    queryKey: ["seller-conversations"],
+    queryKey: conversationsQueryKey,
     queryFn: () => messageService.conversations(),
+    enabled: Boolean(userId),
   });
 
   const conversations = conversationsData?.data || [];
@@ -44,9 +48,9 @@ const SellerMessages = () => {
   const selectedConv = findSelectedConversation(conversations, selectedConversation, openedConversation);
 
   const { data: messagesData, isLoading: messagesLoading, error: messagesError } = useQuery({
-    queryKey: ["conversation-messages", selectedConversation],
+    queryKey: ["conversation-messages", userId, selectedConversation],
     queryFn: () => messageService.getMessages(selectedConversation || ""),
-    enabled: Boolean(selectedConversation),
+    enabled: Boolean(userId && selectedConv),
     // Removed refetchInterval - using Socket.IO for real-time updates
   });
 
@@ -63,7 +67,7 @@ const SellerMessages = () => {
       
       if (String(messageConvId) === String(currentConvId)) {
         // Invalidate and refetch messages for this conversation
-        queryClient.invalidateQueries({ queryKey: ["conversation-messages", selectedConversation] });
+        queryClient.invalidateQueries({ queryKey: ["conversation-messages"] });
         queryClient.invalidateQueries({ queryKey: ["seller-conversations"] });
       } else {
         // Just update conversations list
@@ -107,7 +111,7 @@ const SellerMessages = () => {
     mutationFn: (payload: { conversationId: string; content: string }) => messageService.send(payload),
     onSuccess: () => {
       setMessageText("");
-      queryClient.invalidateQueries({ queryKey: ["conversation-messages", selectedConversation] });
+      queryClient.invalidateQueries({ queryKey: ["conversation-messages"] });
       queryClient.invalidateQueries({ queryKey: ["seller-conversations"] });
     },
   });
@@ -259,7 +263,7 @@ const SellerMessages = () => {
                   <div className="flex items-center justify-center h-full">
                     <div className="text-center">
                       <p className="text-sm text-red-500 mb-2">Error loading messages</p>
-                      <Button size="sm" variant="outline" onClick={() => queryClient.invalidateQueries({ queryKey: ["conversation-messages", selectedConversation] })}>
+                      <Button size="sm" variant="outline" onClick={() => queryClient.invalidateQueries({ queryKey: ["conversation-messages"] })}>
                         Retry
                       </Button>
                     </div>
