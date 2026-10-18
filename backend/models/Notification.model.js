@@ -32,7 +32,10 @@ const notificationSchema = new mongoose.Schema({
       'ad_campaign_rejected',
       'gallery_slot_request',
       'gallery_slot_approved',
-      'gallery_slot_rejected'
+      'gallery_slot_rejected',
+      'agent_assignment_request',
+      'agent_assignment_approved',
+      'agent_assignment_rejected'
     ],
     required: true
   },
@@ -50,7 +53,16 @@ const notificationSchema = new mongoose.Schema({
   },
   relatedModel: {
     type: String,
-    enum: ['Property', 'Tour', 'Message', 'User', 'RentalApplication', 'AdCampaign', 'GallerySlotPurchase'],
+    enum: [
+      'Property',
+      'Tour',
+      'Message',
+      'User',
+      'RentalApplication',
+      'AdCampaign',
+      'GallerySlotPurchase',
+      'AgentAssignmentRequest'
+    ],
     default: null
   },
   isRead: {

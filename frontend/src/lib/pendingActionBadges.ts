@@ -8,6 +8,7 @@ export const SIDEBAR_PENDING_COUNT_KEYS: Record<
     Users: "users",
     Properties: "properties",
     Moderation: "properties",
+    "Agent Requests": "agentRequests",
     "Ad Campaigns": "adCampaigns",
     "Gallery Photos": "galleryPurchases",
     Tours: "tours",

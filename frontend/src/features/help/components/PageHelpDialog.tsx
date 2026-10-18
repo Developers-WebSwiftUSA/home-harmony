@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { BookOpen } from "lucide-react";
 import {
   Dialog,
@@ -13,9 +14,10 @@ type Props = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   manual: HelpManual;
+  footer?: ReactNode;
 };
 
-export const PageHelpDialog = ({ open, onOpenChange, manual }: Props) => (
+export const PageHelpDialog = ({ open, onOpenChange, manual, footer }: Props) => (
   <Dialog open={open} onOpenChange={onOpenChange}>
     <DialogContent className="max-w-lg max-h-[85vh] overflow-y-auto">
       <DialogHeader>
@@ -26,6 +28,7 @@ export const PageHelpDialog = ({ open, onOpenChange, manual }: Props) => (
         <DialogDescription>User guide for this page</DialogDescription>
       </DialogHeader>
       <HelpManualContent manual={manual} />
+      {footer ? <div className="pt-4 border-t border-border mt-4">{footer}</div> : null}
     </DialogContent>
   </Dialog>
 );
@@ -40,6 +43,7 @@ export const PageHelpButton = ({
   <button
     type="button"
     onClick={onClick}
+    data-tour="user-guide-fab"
     aria-label="Open user guide"
     title="User Guide"
     className={

@@ -9,6 +9,7 @@ import {
   updateProfile,
   updateUser,
   deleteUser,
+  createAgent,
   verifyAgent
 } from '../controllers/user.controller.js';
 import { protect, authorize } from '../middleware/auth.middleware.js';
@@ -24,6 +25,7 @@ router.use(protect);
 router.get('/me', getMyProfile);
 router.put('/me', updateProfile);
 router.get('/agents/active', authorize('seller', 'admin'), getActiveAgents);
+router.post('/agents', authorize('admin'), createAgent);
 router.get(['/', ''], authorize('admin'), getUsers);
 router.get('/:id', getUser);
 router.put('/:id', authorize('admin'), updateUser);

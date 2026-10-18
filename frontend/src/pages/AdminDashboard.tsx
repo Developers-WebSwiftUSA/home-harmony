@@ -1,5 +1,5 @@
 import { Link, useNavigate } from "react-router-dom";
-import { LayoutDashboard, Users, Home, Calendar, CalendarCheck, BarChart3, Shield, Bell, MessageSquare, Settings, LogOut, Eye, KeyRound, Heart, Star, Bookmark, Search, FileText, UserCheck, Megaphone, HelpCircle, Newspaper, Images, DollarSign } from "lucide-react";
+import { LayoutDashboard, Users, Home, Calendar, CalendarCheck, BarChart3, Shield, Bell, MessageSquare, Settings, LogOut, Eye, KeyRound, Heart, Star, Bookmark, Search, FileText, UserCheck, ClipboardList, Megaphone, HelpCircle, Newspaper, Images, DollarSign } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import property1 from "@/assets/property-1.jpg";
@@ -34,6 +34,7 @@ const DashboardSidebar = ({ active, role }: { active: string; role: string }) =>
       { icon: LayoutDashboard, label: "Dashboard", href: "/admin" },
       { icon: Users, label: "Users", href: "/admin/users" },
       { icon: UserCheck, label: "Partners", href: "/admin/partners" },
+      { icon: ClipboardList, label: "Agent Requests", href: "/admin/agent-requests" },
       { icon: Home, label: "Properties", href: "/admin/properties" },
       { icon: Megaphone, label: "Ad Campaigns", href: "/admin/ad-campaigns" },
       { icon: Images, label: "Gallery Photos", href: "/admin/gallery-photos" },
@@ -104,10 +105,15 @@ const DashboardSidebar = ({ active, role }: { active: string; role: string }) =>
       <nav className="flex-1 space-y-1">
         {(links[role] || links.admin).map((link) => {
           const pendingCount = getSidebarPendingCount(role, link.label, pendingCounts);
+          const tourId = `sidebar-${link.label
+            .toLowerCase()
+            .replace(/[^a-z0-9]+/g, "-")
+            .replace(/^-|-$/g, "")}`;
           return (
             <Link
               key={link.label}
               to={link.href}
+              data-tour={tourId}
               className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
                 active === link.label
                   ? "bg-primary text-primary-foreground"

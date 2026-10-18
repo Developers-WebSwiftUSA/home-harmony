@@ -4,6 +4,7 @@ import { authService } from "@/services/auth.service";
 import { AgentPreferredArea, User, UserRole } from "@/types/models";
 import { normalizeUser } from "@/lib/userDisplay";
 import { clearAuthToken, getAuthToken, setAuthToken } from "@/lib/auth-token";
+import { notifyAuthSessionStarted } from "@/features/guidedTour/storage";
 
 type AuthContextType = {
   user: User | null;
@@ -82,6 +83,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     await queryClient.cancelQueries();
     queryClient.clear();
     persist(nextUser, nextToken);
+    notifyAuthSessionStarted(nextUser.role);
     return nextUser;
   };
 
@@ -101,6 +103,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     await queryClient.cancelQueries();
     queryClient.clear();
     persist(nextUser, nextToken);
+    notifyAuthSessionStarted(nextUser.role);
     return nextUser;
   };
 

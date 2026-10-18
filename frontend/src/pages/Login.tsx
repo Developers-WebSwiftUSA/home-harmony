@@ -7,8 +7,6 @@ import { UserRole } from "@/types/models";
 import { toast } from "sonner";
 import { uploadService } from "@/services/upload.service";
 import { userService } from "@/services/user.service";
-import { AgentPreferredAreaPicker } from "@/components/AgentPreferredAreaPicker";
-import { draftToPreferredArea, EMPTY_PREFERRED_AREA, PreferredAreaDraft } from "@/lib/preferredArea";
 import { cn } from "@/lib/utils";
 import { buildUserChatPath, rewriteMessagesPathForRole } from "@/lib/chatRoutes";
 
@@ -61,7 +59,6 @@ const Login = () => {
   const [avatarFile, setAvatarFile] = useState<File | null>(null);
   const [avatarPreview, setAvatarPreview] = useState("");
   const [selectedPreset, setSelectedPreset] = useState("");
-  const [preferredArea, setPreferredArea] = useState<PreferredAreaDraft>(EMPTY_PREFERRED_AREA);
 
   const redirectByRole = (nextRole?: string) => {
     navigate(roleHomePath(nextRole || role));
@@ -142,7 +139,6 @@ const Login = () => {
           lastName: form.lastName,
           phone: form.phone,
           avatar: avatarFile ? undefined : selectedPreset || undefined,
-          ...(role === "agent" ? { preferredArea: draftToPreferredArea(preferredArea) } : {}),
         });
         if (avatarFile) {
           try {
@@ -169,7 +165,7 @@ const Login = () => {
 
   return (
     <div className="min-h-screen bg-muted flex items-center justify-center p-4 pb-24">
-      <div className={cn("w-full", isRegister && role === "agent" ? "max-w-xl" : "max-w-md")}>
+      <div className={cn("w-full", "max-w-md")}>
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center gap-2 mb-6">
             <div className="w-10 h-10 rounded-full bg-primary flex items-center justify-center">
@@ -268,15 +264,12 @@ const Login = () => {
                 </div>
                 <div>
                   <label className="text-xs font-medium text-muted-foreground mb-1 block">I am a</label>
-                  <div className="grid grid-cols-4 gap-2">
-                    {(["buyer", "seller", "agent"] as UserRole[]).map((r) => (
+                  <div className="grid grid-cols-2 gap-2">
+                    {(["buyer", "seller"] as UserRole[]).map((r) => (
                       <button
                         key={r}
                         type="button"
-                        onClick={() => {
-                          setRole(r);
-                          if (r !== "agent") setPreferredArea(EMPTY_PREFERRED_AREA);
-                        }}
+                        onClick={() => setRole(r)}
                         className={`py-2 rounded-md text-xs font-medium capitalize transition-colors ${
                           role === r ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:bg-primary/10"
                         }`}
@@ -285,20 +278,10 @@ const Login = () => {
                       </button>
                     ))}
                   </div>
+                  <p className="text-[11px] text-muted-foreground mt-2">
+                    Agent accounts are created by an admin. Sellers can request an agent from My Listings.
+                  </p>
                 </div>
-                {role === "agent" ? (
-                  <div className="pt-1">
-                    <AgentPreferredAreaPicker
-                      compact
-                      value={preferredArea}
-                      onChange={setPreferredArea}
-                    />
-                    <p className="text-[11px] text-muted-foreground mt-2">
-                      Optional — skip this now and add it later from your agent dashboard. It helps
-                      you show up first when sellers pick an agent for nearby listings.
-                    </p>
-                  </div>
-                ) : null}
               </>
             )}
 

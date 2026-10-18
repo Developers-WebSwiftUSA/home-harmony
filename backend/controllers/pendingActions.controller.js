@@ -7,6 +7,7 @@ import RentalApplication from '../models/RentalApplication.model.js';
 import PasswordResetRequest from '../models/PasswordResetRequest.model.js';
 import AdCampaign from '../models/AdCampaign.model.js';
 import GallerySlotPurchase from '../models/GallerySlotPurchase.model.js';
+import AgentAssignmentRequest from '../models/AgentAssignmentRequest.model.js';
 import Conversation from '../models/Conversation.model.js';
 
 const objectId = (value) => new mongoose.Types.ObjectId(String(value));
@@ -31,6 +32,7 @@ const emptyCounts = () => ({
   passwordResets: 0,
   adCampaigns: 0,
   galleryPurchases: 0,
+  agentRequests: 0,
   tours: 0,
   applications: 0,
   messages: 0,
@@ -47,16 +49,27 @@ export const getPendingActions = asyncHandler(async (req, res) => {
   const messagesPromise = unreadMessageCount(userId);
 
   if (role === 'admin') {
-    const [properties, users, passwordResets, adCampaigns, galleryPurchases, tours, messages] = await Promise.all([
-      Property.countDocuments({ status: 'pending' }),
-      User.countDocuments({ role: 'agent', 'agentProfile.verified': { $ne: true } }),
-      PasswordResetRequest.countDocuments({ status: 'pending' }),
-      AdCampaign.countDocuments({ status: 'pending' }),
-      GallerySlotPurchase.countDocuments({ status: 'pending' }),
-      Tour.countDocuments({ status: 'pending' }),
-      messagesPromise,
-    ]);
-    Object.assign(counts, { properties, users, passwordResets, adCampaigns, galleryPurchases, tours, messages });
+    const [properties, users, passwordResets, adCampaigns, galleryPurchases, agentRequests, tours, messages] =
+      await Promise.all([
+        Property.countDocuments({ status: 'pending' }),
+        User.countDocuments({ role: 'agent', 'agentProfile.verified': { $ne: true } }),
+        PasswordResetRequest.countDocuments({ status: 'pending' }),
+        AdCampaign.countDocuments({ status: 'pending' }),
+        GallerySlotPurchase.countDocuments({ status: 'pending' }),
+        AgentAssignmentRequest.countDocuments({ status: 'pending' }),
+        Tour.countDocuments({ status: 'pending' }),
+        messagesPromise,
+      ]);
+    Object.assign(counts, {
+      properties,
+      users,
+      passwordResets,
+      adCampaigns,
+      galleryPurchases,
+      agentRequests,
+      tours,
+      messages,
+    });
   } else if (role === 'seller') {
     const [tours, applications, messages] = await Promise.all([
       Tour.countDocuments({ sellerId: userId, status: 'pending' }),

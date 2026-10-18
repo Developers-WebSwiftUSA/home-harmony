@@ -6,6 +6,29 @@ This is a working-tree summary, not a commit.
 
 ---
 
+## 0. Interactive first-visit tutorial
+
+Game-style walkthrough with **intro → spotlight steps → outro**.
+
+- Spotlight + blur, animated cursor, forced click on the glowing control; other clicks blocked.
+- Progress dots, body scroll lock, smart coachmark placement, Skip anytime.
+- Guest: after Welcome → Start tour → Properties → Rentals → Agents → How It Works → User Guide → Sign In → Finish.
+- **After login/register:** guest tour closes and the matching **dashboard tour** starts (buyer / seller / agent / admin) with intro → sidebar highlights → User Guide → finish.
+- Replay from User Guide → **Replay interactive tutorial**.
+- Persistence: `htg-guided-tour-{public|buyer|seller|agent|admin}`.
+
+---
+
+## 0b. Agent request / admin assign workflow
+
+- **Admin adds agents** via Users → Add agent (`POST /api/users/agents`). Public signup no longer offers Agent.
+- **Sellers request** an agent per listing (`RequestAgentControl` on My Listings); they cannot assign directly.
+- **Admin approves** on `/admin/agent-requests` and picks the agent (defaults to seller preference).
+- Model: `AgentAssignmentRequest`. Direct `PUT /properties/:id/assign-agent` is **admin-only**.
+- Pending-action badge: Agent Requests.
+
+---
+
 ## 1. Listing photos: main image + gallery
 
 Sellers/agents set a **main photo** and a separate **gallery** on add/edit listing (`ListingImageFields`, `SellerAddListing`).
@@ -99,8 +122,11 @@ Agents can set a service area so they rank higher when sellers assign an agent.
 |------|------|
 | `/admin/pricing` | Admin pricing |
 | `/admin/gallery-photos` | Admin gallery slot purchases |
+| `/admin/agent-requests` | Admin approve/assign agent requests |
 | `/api/platform-settings/pricing` | GET/PUT pricing |
 | `/api/gallery-slots` | Gallery slot purchases |
+| `/api/agent-requests` | Seller request / admin approve agent assignment |
+| `/api/users/agents` (POST) | Admin create agent |
 
 ---
 

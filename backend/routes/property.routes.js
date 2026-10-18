@@ -30,7 +30,7 @@ router.get('/:id', optionalAuth, getProperty);
 router.use(protect);
 
 router.post('/', authorize('seller', 'admin'), createProperty);
-router.put('/:id/assign-agent', authorize('seller', 'admin'), assignAgent);
+router.put('/:id/assign-agent', authorize('admin'), assignAgent);
 router.put('/:id/viewership', setPropertyViewership);
 router.put('/:id', updateProperty);
 router.delete('/:id', deleteProperty);

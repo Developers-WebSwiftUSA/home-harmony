@@ -7,6 +7,9 @@ import { emitPendingActionsUpdatedForAdmins } from '../utils/emitPendingActions.
 import { rankAgentsForProperty } from '../utils/agentProximity.js';
 import { ensurePropertyCoordinates } from '../utils/propertyLocation.js';
 import { sanitizePreferredArea, stripEmptyPreferredArea } from '../utils/preferredArea.js';
+import { buildDefaultAvatar } from '../utils/formatAuthUser.js';
+import { sendEmail } from '../utils/sendEmail.js';
+import { SUPER_ADMIN_EMAIL } from '../config/seed.js';
 
 // @desc    Get all users
 // @route   GET /api/users
@@ -373,6 +376,122 @@ export const deleteUser = asyncHandler(async (req, res) => {
   res.status(200).json({
     success: true,
     message: 'User deleted successfully'
+  });
+});
+
+// @desc    Admin creates an agent account
+// @route   POST /api/users/agents
+// @access  Private/Admin
+export const createAgent = asyncHandler(async (req, res) => {
+  const {
+    email,
+    password,
+    firstName,
+    lastName,
+    phone,
+    avatar,
+    licenseNumber,
+    specialization,
+    yearsOfExperience,
+    bio,
+    preferredArea,
+  } = req.body;
+
+  const normalizedEmail = (email || '').toLowerCase().trim();
+  if (!normalizedEmail || !password) {
+    return res.status(400).json({
+      success: false,
+      message: 'Email and password are required',
+    });
+  }
+
+  if (String(password).length < 6) {
+    return res.status(400).json({
+      success: false,
+      message: 'Password must be at least 6 characters',
+    });
+  }
+
+  if (normalizedEmail === SUPER_ADMIN_EMAIL) {
+    return res.status(403).json({
+      success: false,
+      message: 'This email is reserved and cannot be used.',
+    });
+  }
+
+  const userExists = await User.findOne({ email: normalizedEmail });
+  if (userExists) {
+    return res.status(400).json({
+      success: false,
+      message: 'User already exists',
+    });
+  }
+
+  const safeAvatar =
+    typeof avatar === 'string' &&
+    avatar.length <= 500 &&
+    (avatar.startsWith('https://') || avatar.startsWith('http://') || avatar.startsWith('/uploads/'))
+      ? avatar.trim()
+      : '';
+
+  const agentPreferredArea = sanitizePreferredArea(preferredArea);
+  const specialties = Array.isArray(specialization)
+    ? specialization.map((item) => String(item).trim()).filter(Boolean)
+    : typeof specialization === 'string' && specialization.trim()
+      ? specialization.split(',').map((item) => item.trim()).filter(Boolean)
+      : [];
+
+  const user = await User.create({
+    email: normalizedEmail,
+    password,
+    role: 'agent',
+    status: 'active',
+    firstName,
+    lastName,
+    phone,
+    avatar: safeAvatar || buildDefaultAvatar({ firstName, lastName, email: normalizedEmail }),
+    agentProfile: {
+      verified: true,
+      licenseNumber: licenseNumber ? String(licenseNumber).trim() : undefined,
+      specialization: specialties,
+      yearsOfExperience:
+        yearsOfExperience !== undefined && yearsOfExperience !== ''
+          ? Number(yearsOfExperience)
+          : undefined,
+      bio: bio ? String(bio).trim() : undefined,
+      ...(agentPreferredArea ? { preferredArea: agentPreferredArea } : {}),
+    },
+    ...(agentPreferredArea
+      ? {
+          location: {
+            city: agentPreferredArea.city,
+            state: agentPreferredArea.state,
+            coordinates: agentPreferredArea.coordinates,
+          },
+        }
+      : {}),
+  });
+
+  try {
+    await sendEmail({
+      email: user.email,
+      subject: 'Your agent account on House Tour Guide',
+      text: `Hi ${user.firstName || user.email}, an admin created your agent account. Sign in with this email and the password they shared with you.`,
+      html: `<p>Hi ${user.firstName || user.email},</p><p>An admin created your agent account. Sign in with this email and the password they shared with you.</p>`,
+    });
+  } catch (error) {
+    console.error('Agent welcome email error:', error);
+  }
+
+  const payload = user.toObject();
+  delete payload.password;
+  if (payload.agentProfile) {
+    payload.agentProfile = stripEmptyPreferredArea(payload.agentProfile);
+  }
+
+  res.status(201).json({
+    success: true,
+    data: payload,
   });
 });
 

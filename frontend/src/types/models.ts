@@ -83,6 +83,28 @@ export interface AgentPublicProfile {
   properties?: Property[];
 }
 
+export type AgentAssignmentRequestStatus = "pending" | "approved" | "rejected" | "cancelled";
+
+export interface AgentAssignmentRequest {
+  _id: string;
+  id?: string;
+  propertyId: Property | string;
+  sellerId: User | string;
+  preferredAgentId?: User | string | null;
+  assignedAgentId?: User | string | null;
+  message?: string;
+  status: AgentAssignmentRequestStatus;
+  approvedBy?: User | string;
+  approvedAt?: string;
+  rejectedBy?: User | string;
+  rejectedAt?: string;
+  rejectionReason?: string;
+  adminNotes?: string;
+  cancelledAt?: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
 export interface RentalDetails {
   deposit?: number;
   petFee?: number;

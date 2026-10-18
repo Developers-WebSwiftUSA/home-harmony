@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Menu, X, User, Mail, Phone, LogOut, BookOpen } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,19 +9,25 @@ import { getDisplayName } from "@/lib/userDisplay";
 import { openUserGuide } from "@/features/help/lib/openUserGuide";
 
 const navLinks = [
-  { label: "Home", href: "/" },
-  { label: "Properties", href: "/properties" },
-  { label: "Rentals", href: "/rentals" },
-  { label: "Agents", href: "/agents" },
-  { label: "How It Works", href: "/#how-it-works" },
-  { label: "News", href: "/news" },
-  { label: "Contact Us", href: "/contact" },
+  { label: "Home", href: "/", tourId: "nav-home" },
+  { label: "Properties", href: "/properties", tourId: "nav-properties" },
+  { label: "Rentals", href: "/rentals", tourId: "nav-rentals" },
+  { label: "Agents", href: "/agents", tourId: "nav-agents" },
+  { label: "How It Works", href: "/#how-it-works", tourId: "nav-how-it-works" },
+  { label: "News", href: "/news", tourId: "nav-news" },
+  { label: "Contact Us", href: "/contact", tourId: "nav-contact" },
 ];
 
 const Navbar = () => {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { isAuthenticated, user, logout } = useAuth();
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const openMobile = () => setMobileOpen(true);
+    window.addEventListener("htg-open-mobile-nav", openMobile);
+    return () => window.removeEventListener("htg-open-mobile-nav", openMobile);
+  }, []);
 
   const getDashboardPath = () => {
     if (!user) return "/login";
@@ -98,7 +104,7 @@ const Navbar = () => {
                   </button>
                 </div>
               ) : (
-                <Link to="/login">
+                <Link to="/login" data-tour="nav-signin">
                   <Button 
                     variant="outline" 
                     size="sm" 
@@ -124,6 +130,7 @@ const Navbar = () => {
                 <Link
                   key={link.label}
                   to={link.href}
+                  data-tour={link.tourId}
                   className="text-sm font-medium text-slate-800 hover:text-primary transition-colors"
                 >
                   {link.label}
@@ -132,6 +139,7 @@ const Navbar = () => {
               <button
                 type="button"
                 onClick={() => openUserGuide()}
+                data-tour="nav-user-guide"
                 className="text-sm font-medium text-slate-800 hover:text-primary transition-colors inline-flex items-center gap-1.5"
               >
                 <BookOpen className="w-4 h-4" />
@@ -141,7 +149,10 @@ const Navbar = () => {
 
             {/* Mobile toggle */}
             <button
+              type="button"
               className="lg:hidden text-slate-800"
+              data-tour="nav-mobile-toggle"
+              aria-label={mobileOpen ? "Close menu" : "Open menu"}
               onClick={() => setMobileOpen(!mobileOpen)}
             >
               {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
@@ -156,6 +167,7 @@ const Navbar = () => {
                   <Link
                     key={link.label}
                     to={link.href}
+                    data-tour={link.tourId}
                     className="text-sm font-medium text-slate-800 hover:text-primary transition-colors py-2"
                     onClick={() => setMobileOpen(false)}
                   >
@@ -164,6 +176,7 @@ const Navbar = () => {
                 ))}
                 <button
                   type="button"
+                  data-tour="nav-user-guide"
                   onClick={() => {
                     setMobileOpen(false);
                     openUserGuide();

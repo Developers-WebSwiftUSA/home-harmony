@@ -461,9 +461,9 @@ export const setPropertyViewership = asyncHandler(async (req, res) => {
   });
 });
 
-// @desc    Assign agent to property
+// @desc    Assign agent to property (admin only; sellers request via /api/agent-requests)
 // @route   PUT /api/properties/:id/assign-agent
-// @access  Private/Seller or Admin
+// @access  Private/Admin
 export const assignAgent = asyncHandler(async (req, res) => {
   const { agentId } = req.body;
   const property = await Property.findById(req.params.id);
@@ -475,10 +475,10 @@ export const assignAgent = asyncHandler(async (req, res) => {
     });
   }
 
-  if (property.sellerId.toString() !== req.user.id && req.user.role !== 'admin') {
+  if (req.user.role !== 'admin') {
     return res.status(403).json({
       success: false,
-      message: 'Not authorized to assign an agent to this property'
+      message: 'Only an admin can assign an agent. Sellers may request an agent instead.'
     });
   }
 

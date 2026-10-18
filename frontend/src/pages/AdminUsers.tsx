@@ -5,15 +5,36 @@ import { DashboardSidebar } from "./AdminDashboard";
 import { userService } from "@/services/user.service";
 import { passwordResetService } from "@/services/passwordReset.service";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import { UserRole } from "@/types/models";
-import { KeyRound, Eye, EyeOff, Copy, Star, UserCheck } from "lucide-react";
+import { KeyRound, Eye, EyeOff, Copy, Star, UserCheck, Plus } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { tourService } from "@/services/tour.service";
 import { getUserReviewSummary } from "@/lib/reviewStats";
 import { formatRating } from "@/lib/ratings";
 import { liveQueryOptions } from "@/lib/liveQuery";
 import { cn } from "@/lib/utils";
+
+const EMPTY_AGENT_FORM = {
+  firstName: "",
+  lastName: "",
+  email: "",
+  password: "",
+  phone: "",
+  licenseNumber: "",
+  specialization: "",
+  yearsOfExperience: "",
+  bio: "",
+};
 
 type UserPillKey = "all" | "buyer" | "seller" | "agent" | "approval" | "admin";
 
@@ -29,6 +50,9 @@ const AdminUsers = () => {
   const [statusDraft, setStatusDraft] = useState<Record<string, "active" | "inactive" | "pending" | "suspended">>({});
   const [resetPasswords, setResetPasswords] = useState<Record<string, string>>({});
   const [visiblePasswords, setVisiblePasswords] = useState<Record<string, boolean>>({});
+  const [createOpen, setCreateOpen] = useState(false);
+  const [agentForm, setAgentForm] = useState(EMPTY_AGENT_FORM);
+  const [showCreatePassword, setShowCreatePassword] = useState(false);
 
   const { data, isLoading, isError, error } = useQuery({
     queryKey: ["admin-users"],
@@ -95,6 +119,27 @@ const AdminUsers = () => {
       toast.success("Agent approved");
       refresh();
     },
+  });
+
+  const createAgentMutation = useMutation({
+    mutationFn: () =>
+      userService.createAgent({
+        ...agentForm,
+        yearsOfExperience: agentForm.yearsOfExperience
+          ? Number(agentForm.yearsOfExperience)
+          : undefined,
+      }),
+    onSuccess: () => {
+      toast.success("Agent account created");
+      setCreateOpen(false);
+      setAgentForm(EMPTY_AGENT_FORM);
+      setShowCreatePassword(false);
+      refresh();
+      const next = new URLSearchParams(searchParams);
+      next.set("role", "agent");
+      setSearchParams(next, { replace: true });
+    },
+    onError: (err: Error) => toast.error(err.message || "Could not create agent"),
   });
 
   const copyPassword = (password: string) => {
@@ -178,10 +223,30 @@ const AdminUsers = () => {
     <div className="min-h-screen bg-muted flex">
       <DashboardSidebar active="Users" role="admin" />
       <main className="flex-1 ml-64 p-8">
-        <h1 className="text-2xl font-heading font-bold text-foreground mb-2">Users</h1>
-        <p className="text-sm text-muted-foreground mb-6">
-          Manage all registered users. Click a status to filter. Approve new agents from the Agent Approval pill.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-4 mb-6">
+          <div>
+            <h1 className="text-2xl font-heading font-bold text-foreground mb-2">Users</h1>
+            <p className="text-sm text-muted-foreground">
+              Manage users and add agent accounts. Sellers request agents from their listings; review those under{" "}
+              <Link to="/admin/agent-requests" className="text-primary hover:underline">
+                Agent Requests
+              </Link>
+              .
+            </p>
+          </div>
+          <Button
+            type="button"
+            className="gap-1"
+            onClick={() => {
+              setAgentForm(EMPTY_AGENT_FORM);
+              setShowCreatePassword(false);
+              setCreateOpen(true);
+            }}
+          >
+            <Plus className="w-4 h-4" />
+            Add agent
+          </Button>
+        </div>
         <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 mb-6">
           {pills.map((pill) => {
             const isSelected = pillFilter === pill.key;
@@ -391,6 +456,133 @@ const AdminUsers = () => {
           </table>
         </div>
       </main>
+
+      <Dialog open={createOpen} onOpenChange={setCreateOpen}>
+        <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="font-heading">Add agent</DialogTitle>
+            <DialogDescription>
+              Create an agent account. Share the email and password with the agent so they can sign in.
+              Agents cannot self-register.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">First name</label>
+                <Input
+                  value={agentForm.firstName}
+                  onChange={(e) => setAgentForm((p) => ({ ...p, firstName: e.target.value }))}
+                  disabled={createAgentMutation.isPending}
+                />
+              </div>
+              <div>
+                <label className="text-xs font-medium text-muted-foreground mb-1 block">Last name</label>
+                <Input
+                  value={agentForm.lastName}
+                  onChange={(e) => setAgentForm((p) => ({ ...p, lastName: e.target.value }))}
+                  disabled={createAgentMutation.isPending}
+                />
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Email</label>
+              <Input
+                type="email"
+                value={agentForm.email}
+                onChange={(e) => setAgentForm((p) => ({ ...p, email: e.target.value }))}
+                disabled={createAgentMutation.isPending}
+                required
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Password</label>
+              <div className="relative">
+                <Input
+                  type={showCreatePassword ? "text" : "password"}
+                  value={agentForm.password}
+                  onChange={(e) => setAgentForm((p) => ({ ...p, password: e.target.value }))}
+                  disabled={createAgentMutation.isPending}
+                  required
+                  minLength={6}
+                />
+                <button
+                  type="button"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground"
+                  onClick={() => setShowCreatePassword((v) => !v)}
+                >
+                  {showCreatePassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Phone</label>
+              <Input
+                value={agentForm.phone}
+                onChange={(e) => setAgentForm((p) => ({ ...p, phone: e.target.value }))}
+                disabled={createAgentMutation.isPending}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">License number</label>
+              <Input
+                value={agentForm.licenseNumber}
+                onChange={(e) => setAgentForm((p) => ({ ...p, licenseNumber: e.target.value }))}
+                disabled={createAgentMutation.isPending}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">
+                Specialization (comma-separated)
+              </label>
+              <Input
+                value={agentForm.specialization}
+                onChange={(e) => setAgentForm((p) => ({ ...p, specialization: e.target.value }))}
+                placeholder="Residential, Luxury"
+                disabled={createAgentMutation.isPending}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Years of experience</label>
+              <Input
+                type="number"
+                min={0}
+                value={agentForm.yearsOfExperience}
+                onChange={(e) => setAgentForm((p) => ({ ...p, yearsOfExperience: e.target.value }))}
+                disabled={createAgentMutation.isPending}
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-muted-foreground mb-1 block">Bio</label>
+              <Textarea
+                value={agentForm.bio}
+                onChange={(e) => setAgentForm((p) => ({ ...p, bio: e.target.value }))}
+                rows={3}
+                disabled={createAgentMutation.isPending}
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => setCreateOpen(false)}
+                disabled={createAgentMutation.isPending}
+              >
+                Cancel
+              </Button>
+              <Button
+                type="button"
+                disabled={
+                  createAgentMutation.isPending || !agentForm.email.trim() || agentForm.password.length < 6
+                }
+                onClick={() => createAgentMutation.mutate()}
+              >
+                {createAgentMutation.isPending ? "Creating..." : "Create agent"}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

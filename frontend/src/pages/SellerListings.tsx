@@ -9,7 +9,7 @@ import property1 from "@/assets/property-1.jpg";
 import { PropertyImage } from "@/components/PropertyImage";
 import { getPropertyPrimaryImage } from "@/lib/propertyImage";
 import { propertyService } from "@/services/property.service";
-import { AssignAgentControl } from "@/components/AssignAgentControl";
+import { RequestAgentControl } from "@/components/RequestAgentControl";
 import { PropertyViewershipControl } from "@/components/PropertyViewershipControl";
 import { toast } from "sonner";
 import {
@@ -251,9 +251,9 @@ const SellerListings = () => {
                   <div className="border-t border-border pt-4 mb-4">
                     <div className="flex items-center gap-2 mb-2">
                       <UserCheck className="w-4 h-4 text-muted-foreground" />
-                      <span className="text-sm font-medium text-foreground">Assigned Agent</span>
+                      <span className="text-sm font-medium text-foreground">Agent</span>
                     </div>
-                    <AssignAgentControl
+                    <RequestAgentControl
                       propertyId={listing.id}
                       currentAgent={listing.raw.agentId}
                       compact

@@ -3,8 +3,9 @@ import { useLocation } from "react-router-dom";
 import { getHelpForRoute } from "@/features/help/lib/helpRoutes";
 import { USER_GUIDE_EVENT } from "@/features/help/lib/openUserGuide";
 import { PageHelpButton, PageHelpDialog } from "@/features/help/components/PageHelpDialog";
-
-const WELCOME_SEEN_KEY = "htg-welcome-intent-seen";
+import { WELCOME_INTENT_SEEN_KEY } from "@/features/guidedTour/storage";
+import { requestGuidedTourReplay } from "@/features/guidedTour";
+import { Button } from "@/components/ui/button";
 
 /** Floating User Guide control shown on every page — opens a contextual manual. */
 export const GlobalPageHelp = () => {
@@ -13,12 +14,12 @@ export const GlobalPageHelp = () => {
   const manual = getHelpForRoute(location.pathname);
 
   const welcomePending =
-    location.pathname === "/" && !localStorage.getItem(WELCOME_SEEN_KEY);
+    location.pathname === "/" && !localStorage.getItem(WELCOME_INTENT_SEEN_KEY);
 
   useEffect(() => {
     const onOpen = () => {
       const welcomeOpen =
-        location.pathname === "/" && !localStorage.getItem(WELCOME_SEEN_KEY);
+        location.pathname === "/" && !localStorage.getItem(WELCOME_INTENT_SEEN_KEY);
       if (welcomeOpen) return;
       setOpen(true);
     };
@@ -33,7 +34,25 @@ export const GlobalPageHelp = () => {
   return (
     <>
       {welcomePending || open ? null : <PageHelpButton onClick={() => setOpen(true)} />}
-      <PageHelpDialog open={open} onOpenChange={setOpen} manual={manual} />
+      <PageHelpDialog
+        open={open}
+        onOpenChange={setOpen}
+        manual={manual}
+        footer={
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-full"
+            onClick={() => {
+              setOpen(false);
+              requestGuidedTourReplay();
+            }}
+          >
+            Replay interactive tutorial
+          </Button>
+        }
+      />
     </>
   );
 };

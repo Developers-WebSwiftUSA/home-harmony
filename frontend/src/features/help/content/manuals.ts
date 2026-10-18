@@ -226,13 +226,17 @@ export const HELP_MANUALS: Record<string, HelpManual> = {
     steps: [
       {
         title: "Enter credentials",
-        description: "Use your registered email and password. Admins, buyers, sellers, and agents each land on their own dashboard.",
+        description: "Use your registered email and password. Buyers and sellers can sign up; agent accounts are created by an admin. Each role lands on its own dashboard.",
         visual: "auth-form",
       },
       {
         title: "Redirect after login",
         description: "If you came from a protected link (e.g. create listing), you'll return there automatically after signing in.",
-        tips: ["Use Forgot Password if you can't access your account.", "Agents can add an optional preferred map area at signup, or later in Settings."],
+        tips: [
+          "Use Forgot Password if you can't access your account.",
+          "Agents set a preferred service area later from their dashboard Settings.",
+          "New visitors get an interactive spotlight tutorial — Skip anytime, or replay it from the User Guide.",
+        ],
       },
     ],
   },
@@ -444,6 +448,11 @@ export const HELP_MANUALS: Record<string, HelpManual> = {
         title: "Listing table",
         description: "See all your properties with status, price, type, and quick actions.",
         visual: "table-actions",
+      },
+      {
+        title: "Request an agent",
+        description: "On each listing, request an agent for admin approval. You can suggest a preferred agent or leave it blank for the admin to assign.",
+        tips: ["Sellers cannot assign agents directly — only request them."],
       },
       {
         title: "Add a listing",
@@ -668,7 +677,7 @@ export const HELP_MANUALS: Record<string, HelpManual> = {
   "agent-properties": {
     id: "agent-properties",
     title: "Assigned Properties",
-    summary: "Manage listings assigned to you by sellers or admin.",
+    summary: "Manage listings assigned to you by admin after a seller request is approved.",
     role: "agent",
     steps: [
       {
@@ -809,7 +818,7 @@ export const HELP_MANUALS: Record<string, HelpManual> = {
       },
       {
         title: "Preferred area",
-        description: "Optionally search the map and set a service radius. Sellers assigning an agent to nearby listings will see you higher in Suggested nearby.",
+        description: "Optionally search the map and set a service radius. When sellers request an agent for nearby listings, you rank higher in Suggested nearby for admins assigning you.",
         visual: "map-search",
       },
     ],
@@ -838,7 +847,7 @@ export const HELP_MANUALS: Record<string, HelpManual> = {
   "admin-users": {
     id: "admin-users",
     title: "User Management",
-    summary: "Browse, approve, and manage all platform users.",
+    summary: "Browse, create agents, and manage all platform users.",
     role: "admin",
     steps: [
       {
@@ -847,8 +856,33 @@ export const HELP_MANUALS: Record<string, HelpManual> = {
         visual: "table-actions",
       },
       {
+        title: "Add agents",
+        description: "Use Add agent to create agent accounts. Agents cannot self-register. Share the login email and password with them.",
+      },
+      {
         title: "Approve or suspend",
-        description: "Activate pending accounts or restrict access for moderation.",
+        description: "Activate pending accounts or restrict access for moderation. Seller agent assignment requests are handled under Agent Requests.",
+      },
+    ],
+  },
+
+  "admin-agent-requests": {
+    id: "admin-agent-requests",
+    title: "Agent Requests",
+    summary: "Approve seller requests and assign agents to listings.",
+    role: "admin",
+    steps: [
+      {
+        title: "Review pending requests",
+        description: "Sellers submit requests from My Listings. Each request shows the listing, seller, and any preferred agent.",
+      },
+      {
+        title: "Approve & assign",
+        description: "Choose the agent (defaults to the seller's preference when set) and approve to assign them to the listing.",
+      },
+      {
+        title: "Reject",
+        description: "Decline a request with an optional reason so the seller can request again.",
       },
     ],
   },
@@ -885,7 +919,7 @@ export const HELP_MANUALS: Record<string, HelpManual> = {
       },
       {
         title: "Assign agents",
-        description: "Link listings to agents for client management.",
+        description: "Admins can assign agents on a listing review, or approve seller requests from Agent Requests.",
       },
     ],
   },
@@ -1168,6 +1202,7 @@ export const ROLE_HELP_ORDER: Record<string, string[]> = {
     "admin-users",
     "admin-user-review",
     "admin-partners",
+    "admin-agent-requests",
     "admin-properties",
     "admin-property-review",
     "admin-ad-campaigns",

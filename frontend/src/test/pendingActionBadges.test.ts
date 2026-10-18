@@ -11,6 +11,7 @@ const counts: PendingActionCounts = {
   passwordResets: 1,
   adCampaigns: 3,
   galleryPurchases: 8,
+  agentRequests: 9,
   tours: 5,
   applications: 6,
   messages: 7,
@@ -22,6 +23,7 @@ describe("pendingActionBadges", () => {
     expect(getSidebarPendingCount("admin", "Moderation", counts)).toBe(4);
     expect(getSidebarPendingCount("admin", "Users", counts)).toBe(2);
     expect(getSidebarPendingCount("admin", "Password Resets", counts)).toBe(1);
+    expect(getSidebarPendingCount("admin", "Agent Requests", counts)).toBe(9);
     expect(getSidebarPendingCount("admin", "Ad Campaigns", counts)).toBe(3);
     expect(getSidebarPendingCount("admin", "Gallery Photos", counts)).toBe(8);
     expect(getSidebarPendingCount("admin", "Tours", counts)).toBe(5);

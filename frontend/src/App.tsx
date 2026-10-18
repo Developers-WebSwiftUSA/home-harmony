@@ -70,10 +70,12 @@ import AdminPartners from "./pages/AdminPartners";
 import AdCampaigns from "./pages/AdCampaigns";
 import AdminAdCampaigns from "./pages/AdminAdCampaigns";
 import AdminGalleryPurchases from "./pages/AdminGalleryPurchases";
+import AdminAgentRequests from "./pages/AdminAgentRequests";
 import AdminPricing from "./pages/AdminPricing";
 import AdminNews from "./pages/AdminNews";
 import { WelcomeIntentDialog } from "./components/landing/WelcomeIntentDialog";
 import { GlobalPageHelp } from "./features/help/components/GlobalPageHelp";
+import { GuidedTourProvider } from "./features/guidedTour";
 import DashboardHelp from "./pages/DashboardHelp";
 
 const queryClient = new QueryClient({
@@ -106,6 +108,7 @@ const App = () => (
           <BrowserRouter>
           <WelcomeIntentDialog />
           <GlobalPageHelp />
+          <GuidedTourProvider />
           <Routes>
             <Route path="/" element={<Index />} />
             <Route path="/properties" element={<Properties />} />
@@ -134,6 +137,7 @@ const App = () => (
             <Route path="/admin/password-resets" element={<ProtectedRoute roles={["admin"]}><AdminPasswordResets /></ProtectedRoute>} />
             <Route path="/admin/messages" element={<ProtectedRoute roles={["admin"]}><AdminMessages /></ProtectedRoute>} />
             <Route path="/admin/partners" element={<ProtectedRoute roles={["admin"]}><AdminPartners /></ProtectedRoute>} />
+            <Route path="/admin/agent-requests" element={<ProtectedRoute roles={["admin"]}><AdminAgentRequests /></ProtectedRoute>} />
             <Route path="/admin/ad-campaigns" element={<ProtectedRoute roles={["admin"]}><AdminAdCampaigns /></ProtectedRoute>} />
             <Route path="/admin/gallery-photos" element={<ProtectedRoute roles={["admin"]}><AdminGalleryPurchases /></ProtectedRoute>} />
             <Route path="/admin/pricing" element={<ProtectedRoute roles={["admin"]}><AdminPricing /></ProtectedRoute>} />

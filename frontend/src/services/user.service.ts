@@ -45,5 +45,22 @@ export const userService = {
       method: "PUT",
       auth: true,
     }),
+
+  createAgent: (payload: {
+    email: string;
+    password: string;
+    firstName?: string;
+    lastName?: string;
+    phone?: string;
+    licenseNumber?: string;
+    specialization?: string;
+    yearsOfExperience?: number | string;
+    bio?: string;
+  }) =>
+    apiRequest<ApiResponse<User>>("/users/agents", {
+      method: "POST",
+      auth: true,
+      body: JSON.stringify(payload),
+    }),
 };
 

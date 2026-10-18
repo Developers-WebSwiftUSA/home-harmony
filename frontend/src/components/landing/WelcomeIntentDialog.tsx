@@ -12,8 +12,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { cn } from "@/lib/utils";
+import {
+  WELCOME_INTENT_DISMISSED_EVENT,
+  WELCOME_INTENT_SEEN_KEY,
+} from "@/features/guidedTour/storage";
 
-const STORAGE_KEY = "htg-welcome-intent-seen";
+const STORAGE_KEY = WELCOME_INTENT_SEEN_KEY;
 
 const isDashboardPath = (pathname: string) =>
   /^\/(admin|seller|agent|buyer)(\/|$)/.test(pathname);
@@ -39,6 +43,7 @@ export const WelcomeIntentDialog = () => {
   const markSeen = () => {
     localStorage.setItem(STORAGE_KEY, "1");
     setOpen(false);
+    window.dispatchEvent(new Event(WELCOME_INTENT_DISMISSED_EVENT));
   };
 
   const handleOpenChange = (next: boolean) => {

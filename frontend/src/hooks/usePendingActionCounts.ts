@@ -11,6 +11,7 @@ const emptyCounts: PendingActionCounts = {
   passwordResets: 0,
   adCampaigns: 0,
   galleryPurchases: 0,
+  agentRequests: 0,
   tours: 0,
   applications: 0,
   messages: 0,

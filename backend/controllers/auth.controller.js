@@ -6,8 +6,6 @@ import { sendEmail } from '../utils/sendEmail.js';
 import { SUPER_ADMIN_EMAIL } from '../config/seed.js';
 import { buildDefaultAvatar, formatAuthUser } from '../utils/formatAuthUser.js';
 import { emitPendingActionsUpdatedForAdmins } from '../utils/emitPendingActions.js';
-import { sanitizePreferredArea } from '../utils/preferredArea.js';
-
 // @desc    Register user
 // @route   POST /api/auth/register
 // @access  Public
@@ -23,12 +21,19 @@ export const register = asyncHandler(async (req, res) => {
     });
   }
 
-  // Admin accounts cannot be self-registered.
-  // Admin role should only be assigned by an existing admin.
+  // Admin and agent accounts cannot be self-registered.
+  // Agents are created by an admin; admin role is assigned by an existing admin.
   if (normalizedRole === "admin") {
     return res.status(403).json({
       success: false,
       message: "Admin signup is disabled. Admin role can only be assigned by an existing admin.",
+    });
+  }
+
+  if (normalizedRole === "agent") {
+    return res.status(403).json({
+      success: false,
+      message: "Agent accounts are created by an admin. Sellers can request an agent from their listings.",
     });
   }
 
@@ -48,9 +53,6 @@ export const register = asyncHandler(async (req, res) => {
       ? avatar.trim()
       : "";
 
-  const agentPreferredArea =
-    normalizedRole === "agent" ? sanitizePreferredArea(preferredArea || req.body.agentProfile?.preferredArea) : null;
-
   // Create user with optional profile picture, otherwise a generated avatar
   const user = await User.create({
     email: normalizedEmail,
@@ -60,28 +62,7 @@ export const register = asyncHandler(async (req, res) => {
     lastName,
     phone,
     avatar: safeAvatar || buildDefaultAvatar({ firstName, lastName, email: normalizedEmail }),
-    ...(normalizedRole === "agent"
-      ? {
-          agentProfile: {
-            verified: false,
-            ...(agentPreferredArea ? { preferredArea: agentPreferredArea } : {}),
-          },
-          ...(agentPreferredArea
-            ? {
-                location: {
-                  city: agentPreferredArea.city,
-                  state: agentPreferredArea.state,
-                  coordinates: agentPreferredArea.coordinates,
-                },
-              }
-            : {}),
-        }
-      : {}),
   });
-
-  if (normalizedRole === "agent") {
-    await emitPendingActionsUpdatedForAdmins(req.app.get('io'));
-  }
 
   // Generate token
   const token = generateToken(user._id);
