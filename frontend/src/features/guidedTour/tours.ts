@@ -59,7 +59,7 @@ export const GUIDED_TOURS: Record<string, GuidedTourDefinition> = {
         title: "Help is always here",
         body: "This User Guide button opens page-by-page help anytime. Click it to continue — we'll keep the guide closed for now.",
         route: "/",
-        placement: "left",
+        placement: "top",
         suppressTargetAction: true,
       },
       {
@@ -130,7 +130,7 @@ export const GUIDED_TOURS: Record<string, GuidedTourDefinition> = {
         title: "User Guide",
         body: "Need a refresher later? This button opens help for the page you're on. Click it to finish.",
         route: "/buyer",
-        placement: "left",
+        placement: "top",
         suppressTargetAction: true,
       },
       {
@@ -192,7 +192,7 @@ export const GUIDED_TOURS: Record<string, GuidedTourDefinition> = {
         title: "User Guide",
         body: "Click the User Guide for page-specific help anytime.",
         route: "/seller",
-        placement: "left",
+        placement: "top",
         suppressTargetAction: true,
       },
       {
@@ -254,7 +254,7 @@ export const GUIDED_TOURS: Record<string, GuidedTourDefinition> = {
         title: "User Guide",
         body: "Click User Guide whenever you need help on the current page.",
         route: "/agent",
-        placement: "left",
+        placement: "top",
         suppressTargetAction: true,
       },
       {
@@ -316,7 +316,7 @@ export const GUIDED_TOURS: Record<string, GuidedTourDefinition> = {
         title: "User Guide",
         body: "Click User Guide for manuals on every admin page.",
         route: "/admin",
-        placement: "left",
+        placement: "top",
         suppressTargetAction: true,
       },
       {
